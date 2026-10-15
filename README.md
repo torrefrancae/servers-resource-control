@@ -2,6 +2,8 @@
 
 A tiny always-on-top Electron panel that polls CPU, memory, and GPU usage across your local machine and SSH-reachable LAN hosts.
 
+![Servers Resource Control floating panel](docs/panel.png)
+
 Built as a personal ops utility: low chrome, fast glanceability, resizable layout, and optional sleep controls for lab machines.
 
 ## Why this exists
