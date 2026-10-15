@@ -187,6 +187,20 @@ body {
   background: rgba(61, 186, 139, 0.22);
 }
 
+.chip-timer-on {
+  color: var(--hot);
+  background: var(--chip-warn-bg);
+  border-color: var(--chip-warn-border);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.chip-timer-on:hover:not(:disabled) {
+  color: var(--hot);
+  background: rgba(224, 101, 74, 0.22);
+}
+
 #theme {
   font-weight: 700;
 }

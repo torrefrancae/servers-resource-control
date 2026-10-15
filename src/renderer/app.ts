@@ -1,3 +1,14 @@
+import {
+  clearSleepTimer,
+  formatTargetLabel,
+  getSleepTimerTarget,
+  initSleepTimer,
+  isSleepTimerActive,
+  nextOccurrence,
+  parseHhMm,
+  setSleepTimer,
+} from "./sleep-timer.js";
+
 type HostMetrics = {
   id: string;
   label: string;
@@ -165,7 +176,7 @@ function render(payload: MetricsPayload): void {
   const stamp = new Date(payload.polledAt).toLocaleTimeString();
   const real = payload.hosts.filter((h) => !isFleetHost(h));
   const online = real.filter((h) => h.online).length;
-  if (!pendingSleepIds.size) {
+  if (!pendingSleepIds.size && !isSleepTimerActive()) {
     const offline = real.filter((h) => !h.online).map((h) => h.label);
     foot.textContent = offline.length
       ? `${online}/${real.length} up · down: ${offline.join(", ")} · ${stamp}`
@@ -283,13 +294,60 @@ async function requestSleep(id: string, label: string): Promise<void> {
   }
 }
 
-async function requestSleepAll(): Promise<void> {
-  if (
-    !window.confirm(
-      "Sleep ALL hosts now? Remotes first, then this Mac. You will need to wake them manually.",
-    )
-  ) {
+function applyTimerUi(label: string | null, targetAt: number | null): void {
+  const btn = document.getElementById("sleep-timer");
+  if (!btn) return;
+  const active = targetAt != null;
+  btn.classList.toggle("chip-timer-on", active);
+  btn.setAttribute("aria-pressed", String(active));
+  if (active && label) {
+    btn.textContent = label;
+    btn.title = `Sleep all at ${formatTargetLabel(targetAt)} (click to cancel)`;
+  } else {
+    btn.textContent = "timer";
+    btn.title = "Set sleep-all timer (HH:MM 24h)";
+  }
+}
+
+function promptSleepTimer(): void {
+  const suggestion = (() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 30);
+    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  })();
+  const raw = window.prompt(
+    "Sleep all at (24h HH:MM). Uses tomorrow if that time already passed today.",
+    suggestion,
+  );
+  if (raw == null) return;
+  const parsed = parseHhMm(raw);
+  if (!parsed) {
+    window.alert("Use 24-hour HH:MM, e.g. 23:30");
     return;
+  }
+  const target = nextOccurrence(parsed.hour, parsed.minute);
+  setSleepTimer(target.getTime());
+  setFoot(`timer set for ${formatTargetLabel(target.getTime())}`);
+}
+
+function onSleepTimerClick(): void {
+  if (isSleepTimerActive()) {
+    clearSleepTimer();
+    setFoot("timer cancelled");
+    return;
+  }
+  promptSleepTimer();
+}
+
+async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
+  if (options.confirm) {
+    if (
+      !window.confirm(
+        "Sleep ALL hosts now? Remotes first, then this Mac. You will need to wake them manually.",
+      )
+    ) {
+      return;
+    }
   }
   sleepAllPending = true;
   document.querySelectorAll<HTMLButtonElement>(".chip-sleep").forEach((btn) => {
@@ -303,7 +361,7 @@ async function requestSleepAll(): Promise<void> {
     allBtn.disabled = true;
     allBtn.textContent = "zzz";
   }
-  setFoot("sleeping all hosts...");
+  setFoot(options.confirm ? "sleeping all hosts..." : "timer fired - sleeping all...");
   const results = await window.pcMonitor.sleepAll();
   const failed = results.filter((r) => !r.ok);
   for (const result of failed) {
@@ -322,12 +380,18 @@ async function requestSleepAll(): Promise<void> {
         online: !pendingSleepIds.has(r.id),
       })),
     );
-    window.alert(
-      failed.map((r) => `${r.label}: ${r.error || "failed"}`).join("\n"),
-    );
+    if (options.confirm) {
+      window.alert(
+        failed.map((r) => `${r.label}: ${r.error || "failed"}`).join("\n"),
+      );
+    }
   } else {
     setFoot("sleep all sent");
   }
+}
+
+async function requestSleepAll(): Promise<void> {
+  await executeSleepAll({ confirm: true });
 }
 
 document.getElementById("quit")?.addEventListener("click", () => {
@@ -355,6 +419,10 @@ document.getElementById("sleep-all")?.addEventListener("click", () => {
   void requestSleepAll();
 });
 
+document.getElementById("sleep-timer")?.addEventListener("click", () => {
+  onSleepTimerClick();
+});
+
 document.getElementById("hosts")?.addEventListener("click", (event) => {
   const target = event.target as HTMLElement | null;
   const btn = target?.closest?.(".chip-sleep") as HTMLButtonElement | null;
@@ -370,6 +438,22 @@ document.getElementById("hosts")?.addEventListener("click", (event) => {
 applyTheme(readTheme());
 applyFleetUi(readFleetVisible());
 void window.pcMonitor.getAlwaysOnTop().then((onTop) => applyPinUi(onTop));
+
+initSleepTimer({
+  onTick: (label, at) => {
+    applyTimerUi(label, at);
+    if (!pendingSleepIds.size) {
+      setFoot(`sleep all in ${label} · ${formatTargetLabel(at)}`);
+    }
+  },
+  onIdle: () => {
+    applyTimerUi(null, null);
+  },
+  onFire: () => executeSleepAll({ confirm: false }),
+});
+
+const restoredTimer = getSleepTimerTarget();
+if (restoredTimer) applyTimerUi("...", restoredTimer);
 
 const shellEl = document.getElementById("shell");
 if (shellEl && typeof ResizeObserver !== "undefined") {

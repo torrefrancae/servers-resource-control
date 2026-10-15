@@ -20,6 +20,7 @@ I wanted a floating strip I could leave on a secondary display while coding. Bro
 - Local + remote host metrics (CPU / memory / GPU)
 - Fleet summary row (average of online hosts + availability), hidden until toggled
 - Per-host sleep and sleep-all (macOS `pmset`, Linux `systemctl suspend`)
+- Sleep timer: set a 24h `HH:MM` target, countdown in the header, then sleep all with no confirm prompt
 - Always-on-top toggle vs normal window level
 - Light / dark theme
 - Compact multi-column layout when the window is short and wide
