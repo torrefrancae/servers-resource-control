@@ -201,6 +201,38 @@ body {
   background: rgba(224, 101, 74, 0.22);
 }
 
+.timer-edit {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.timer-edit.is-open {
+  display: inline-flex;
+}
+
+.timer-input {
+  -webkit-app-region: no-drag;
+  width: 52px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--btn-fill);
+  color: var(--text);
+  font: inherit;
+  font-size: clamp(8px, 2vw, 10px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 3px 6px;
+  line-height: 1.2;
+  outline: none;
+}
+
+.timer-input:focus {
+  border-color: var(--chip-warn-border);
+}
+
 #theme {
   font-weight: 700;
 }

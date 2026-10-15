@@ -20,6 +20,26 @@
           <button type="button" class="chip" id="sleep-timer" title="Set sleep-all timer (HH:MM 24h)" aria-pressed="false">
             timer
           </button>
+          <div class="timer-edit" id="timer-edit" hidden>
+            <input
+              id="timer-input"
+              class="timer-input"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="5"
+              placeholder="HH:MM"
+              title="24-hour time, e.g. 23:30"
+              aria-label="Sleep all time HH:MM"
+            />
+            <button type="button" class="chip chip-warn" id="timer-set" title="Arm sleep-all timer">
+              set
+            </button>
+            <button type="button" class="chip chip-icon" id="timer-cancel-edit" title="Cancel">
+              x
+            </button>
+          </div>
           <button type="button" class="chip" id="fleet" title="Show fleet summary" aria-pressed="false">
             fleet
           </button>

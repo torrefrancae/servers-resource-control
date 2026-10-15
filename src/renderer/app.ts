@@ -294,12 +294,21 @@ async function requestSleep(id: string, label: string): Promise<void> {
   }
 }
 
+let timerEditOpen = false;
+
+function defaultTimerSuggestion(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() + 30);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function applyTimerUi(label: string | null, targetAt: number | null): void {
   const btn = document.getElementById("sleep-timer");
   if (!btn) return;
   const active = targetAt != null;
   btn.classList.toggle("chip-timer-on", active);
   btn.setAttribute("aria-pressed", String(active));
+  btn.hidden = timerEditOpen;
   if (active && label) {
     btn.textContent = label;
     btn.title = `Sleep all at ${formatTargetLabel(targetAt)} (click to cancel)`;
@@ -309,23 +318,46 @@ function applyTimerUi(label: string | null, targetAt: number | null): void {
   }
 }
 
-function promptSleepTimer(): void {
-  const suggestion = (() => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() + 30);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  })();
-  const raw = window.prompt(
-    "Sleep all at (24h HH:MM). Uses tomorrow if that time already passed today.",
-    suggestion,
-  );
-  if (raw == null) return;
+function closeTimerEdit(): void {
+  timerEditOpen = false;
+  const edit = document.getElementById("timer-edit");
+  edit?.classList.remove("is-open");
+  edit?.setAttribute("hidden", "");
+  const active = getSleepTimerTarget();
+  applyTimerUi(active && isSleepTimerActive() ? "..." : null, active);
+}
+
+function openTimerEdit(): void {
+  timerEditOpen = true;
+  const edit = document.getElementById("timer-edit");
+  const input = document.getElementById("timer-input") as HTMLInputElement | null;
+  const btn = document.getElementById("sleep-timer");
+  if (btn) btn.hidden = true;
+  edit?.classList.add("is-open");
+  edit?.removeAttribute("hidden");
+  if (input) {
+    input.value = defaultTimerSuggestion();
+    input.focus();
+    input.select();
+  }
+  setFoot("enter HH:MM then set");
+}
+
+function commitTimerEdit(): void {
+  const input = document.getElementById("timer-input") as HTMLInputElement | null;
+  const raw = (input?.value || "").trim();
   const parsed = parseHhMm(raw);
   if (!parsed) {
-    window.alert("Use 24-hour HH:MM, e.g. 23:30");
+    setFoot("use 24h HH:MM, e.g. 23:30");
+    input?.focus();
+    input?.select();
     return;
   }
   const target = nextOccurrence(parsed.hour, parsed.minute);
+  timerEditOpen = false;
+  const edit = document.getElementById("timer-edit");
+  edit?.classList.remove("is-open");
+  edit?.setAttribute("hidden", "");
   setSleepTimer(target.getTime());
   setFoot(`timer set for ${formatTargetLabel(target.getTime())}`);
 }
@@ -336,7 +368,7 @@ function onSleepTimerClick(): void {
     setFoot("timer cancelled");
     return;
   }
-  promptSleepTimer();
+  openTimerEdit();
 }
 
 async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
@@ -423,6 +455,26 @@ document.getElementById("sleep-timer")?.addEventListener("click", () => {
   onSleepTimerClick();
 });
 
+document.getElementById("timer-set")?.addEventListener("click", () => {
+  commitTimerEdit();
+});
+
+document.getElementById("timer-cancel-edit")?.addEventListener("click", () => {
+  closeTimerEdit();
+  setFoot("timer edit cancelled");
+});
+
+document.getElementById("timer-input")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    commitTimerEdit();
+  } else if (event.key === "Escape") {
+    event.preventDefault();
+    closeTimerEdit();
+    setFoot("timer edit cancelled");
+  }
+});
+
 document.getElementById("hosts")?.addEventListener("click", (event) => {
   const target = event.target as HTMLElement | null;
   const btn = target?.closest?.(".chip-sleep") as HTMLButtonElement | null;
@@ -441,12 +493,14 @@ void window.pcMonitor.getAlwaysOnTop().then((onTop) => applyPinUi(onTop));
 
 initSleepTimer({
   onTick: (label, at) => {
+    if (timerEditOpen) return;
     applyTimerUi(label, at);
     if (!pendingSleepIds.size) {
       setFoot(`sleep all in ${label} · ${formatTargetLabel(at)}`);
     }
   },
   onIdle: () => {
+    if (timerEditOpen) return;
     applyTimerUi(null, null);
   },
   onFire: () => executeSleepAll({ confirm: false }),
