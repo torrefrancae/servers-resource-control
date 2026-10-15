@@ -6,6 +6,7 @@ import {
   Menu,
   nativeImage,
 } from "electron";
+import fs from "node:fs";
 import path from "node:path";
 import { POLL_MS } from "@src/shared/hosts";
 import { pollAll } from "@src/main/metrics";
@@ -17,6 +18,18 @@ import {
 } from "@src/main/window-state";
 import { sleepHost, sleepHosts } from "@src/main/sleep";
 import type { HostId } from "@src/shared/hosts";
+
+function migrateLegacyUserData(): void {
+  const appData = app.getPath("appData");
+  const legacy = path.join(appData, "pc-resource-monitor");
+  const next = app.getPath("userData");
+  if (legacy === next || !fs.existsSync(legacy) || fs.existsSync(next)) return;
+  try {
+    fs.cpSync(legacy, next, { recursive: true });
+  } catch {
+    /* keep going with defaults if migrate fails */
+  }
+}
 
 const WIN_W = 280;
 const WIN_H = 210;
@@ -133,7 +146,7 @@ function createTray(): void {
   const iconPath = path.join(__dirname, "../../assets/tray.png");
   const img = nativeImage.createFromPath(iconPath);
   tray = new Tray(img.isEmpty() ? nativeImage.createEmpty() : img);
-  tray.setToolTip("PC resource monitor");
+  tray.setToolTip("Servers resource control");
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
@@ -201,6 +214,7 @@ function startPolling(): void {
 }
 
 app.whenReady().then(() => {
+  migrateLegacyUserData();
   if (process.platform === "darwin") {
     app.dock?.hide();
   }

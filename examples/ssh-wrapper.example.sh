@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Example SSH entrypoint expected by pc-resource-monitor.
+# Example SSH entrypoint expected by servers-resource-control.
 # Copy beside a private .env (never commit the .env) and point hosts.json at this script.
 set -euo pipefail
 

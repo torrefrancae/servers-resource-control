@@ -1,4 +1,4 @@
-# PC Resource Monitor
+# Servers Resource Control
 
 A tiny always-on-top Electron panel that polls CPU, memory, and GPU usage across your local machine and SSH-reachable LAN hosts.
 
@@ -48,8 +48,8 @@ Polling interval defaults to **2.5s**. Remote Linux CPU uses a short `/proc/stat
 ## Quick start
 
 ```bash
-git clone https://github.com/torrefrancae/pc-resource-monitor.git
-cd pc-resource-monitor
+git clone https://github.com/torrefrancae/servers-resource-control.git
+cd servers-resource-control
 npm install
 cp config/hosts.example.json config/hosts.json
 # edit config/hosts.json with your hosts and SSH wrapper paths

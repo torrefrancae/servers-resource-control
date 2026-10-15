@@ -1,5 +1,5 @@
 {
-  "name": "pc-resource-monitor",
+  "name": "servers-resource-control",
   "version": "1.0.0",
   "private": false,
   "description": "Tiny always-on-top Electron panel for local and LAN CPU, memory, and GPU monitoring over SSH",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/torrefrancae/pc-resource-monitor.git"
+    "url": "git+https://github.com/torrefrancae/servers-resource-control.git"
   },
   "keywords": [
     "electron",
@@ -25,9 +25,9 @@
   "author": "Eldridge Torrefranca",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/torrefrancae/pc-resource-monitor/issues"
+    "url": "https://github.com/torrefrancae/servers-resource-control/issues"
   },
-  "homepage": "https://github.com/torrefrancae/pc-resource-monitor#readme",
+  "homepage": "https://github.com/torrefrancae/servers-resource-control#readme",
   "devDependencies": {
     "@types/node": "^22.13.10",
     "electron": "^35.0.3",

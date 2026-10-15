@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Detached launcher for the tiny always-on-top PC resource monitor.
+# Detached launcher for the tiny always-on-top servers resource control panel.
 set -euo pipefail
 
 SERVE_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEBUG_LOG="${DEBUG_LOG:-$SERVE_ROOT_DIR/debug.log}"
 PID_FILE="${SERVE_ROOT_DIR}/.serve-headless.pid"
 HEADLESS_LOG="${SERVE_ROOT_DIR}/serve-headless.log"
-LABEL="com.et.pc-resource-monitor"
+LABEL="com.et.servers-resource-control"
+LEGACY_LABEL="com.et.pc-resource-monitor"
+APP_DIR_NAME="$(basename "$SERVE_ROOT_DIR")"
 
 sanitize_log_line() {
   tr -d '\000' | tr -cd '\11\12\15\40-\176'
@@ -37,13 +39,15 @@ is_running() {
       return 0
     fi
   fi
-  pgrep -f "electron .*pc-resource-monitor" >/dev/null 2>&1
+  pgrep -f "electron .*${APP_DIR_NAME}" >/dev/null 2>&1
 }
 
 stop_app() {
-  # Prefer graceful SIGTERM so Electron can flush window-state.json
   local pids
-  pids="$(pgrep -f '/pc-resource-monitor/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron' 2>/dev/null || true)"
+  pids="$(pgrep -f "/${APP_DIR_NAME}/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" 2>/dev/null || true)"
+  if [[ -z "$pids" ]]; then
+    pids="$(pgrep -f '/pc-resource-monitor/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron' 2>/dev/null || true)"
+  fi
   if [[ -n "$pids" ]]; then
     # shellcheck disable=SC2086
     kill $pids 2>/dev/null || true
@@ -61,7 +65,9 @@ stop_app() {
     fi
     rm -f "$PID_FILE"
   fi
+  pkill -f "/${APP_DIR_NAME}/node_modules/electron" 2>/dev/null || true
   pkill -f "/pc-resource-monitor/node_modules/electron" 2>/dev/null || true
+  pkill -f "electron .*${APP_DIR_NAME}" 2>/dev/null || true
   pkill -f "electron .*pc-resource-monitor" 2>/dev/null || true
   sleep 0.5
 }
@@ -116,6 +122,8 @@ EOF
 </dict>
 </plist>
 EOF
+  launchctl bootout "gui/$(id -u)/${LEGACY_LABEL}" 2>/dev/null || true
+  rm -f "$HOME/Library/LaunchAgents/${LEGACY_LABEL}.plist"
   launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
   launchctl bootstrap "gui/$(id -u)" "$plist"
   launchctl enable "gui/$(id -u)/${LABEL}" 2>/dev/null || true
@@ -126,7 +134,8 @@ EOF
 uninstall_login() {
   local plist="$HOME/Library/LaunchAgents/${LABEL}.plist"
   launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
-  rm -f "$plist"
+  launchctl bootout "gui/$(id -u)/${LEGACY_LABEL}" 2>/dev/null || true
+  rm -f "$plist" "$HOME/Library/LaunchAgents/${LEGACY_LABEL}.plist"
   append_debug_log "removed login agent ${LABEL}"
   echo "Login auto-start removed"
 }
@@ -184,7 +193,7 @@ npm run build >>"$DEBUG_LOG" 2>&1
 
 if is_running; then
   append_debug_log "already running"
-  echo "pc-resource-monitor already running"
+  echo "servers-resource-control already running"
   exit 0
 fi
 
