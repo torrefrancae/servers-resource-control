@@ -1,0 +1,37 @@
+{
+  "name": "pc-resource-monitor",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Tiny always-on-top Electron panel for local and LAN CPU, memory, and GPU monitoring over SSH",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && tsc-alias -p tsconfig.main.json && node scripts/copy-static.mjs && node scripts/make-tray-icon.mjs",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/torrefrancae/pc-resource-monitor.git"
+  },
+  "keywords": [
+    "electron",
+    "monitoring",
+    "ssh",
+    "cpu",
+    "gpu",
+    "lan",
+    "desktop"
+  ],
+  "author": "Eldridge Torrefranca",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/torrefrancae/pc-resource-monitor/issues"
+  },
+  "homepage": "https://github.com/torrefrancae/pc-resource-monitor#readme",
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "electron": "^35.0.3",
+    "tsc-alias": "^1.8.11",
+    "typescript": "^5.8.2"
+  }
+}

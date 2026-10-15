@@ -1,0 +1,26 @@
+[
+  {
+    "id": "local",
+    "label": "this-machine",
+    "kind": "darwin",
+    "source": "local"
+  },
+  {
+    "id": "linux-lab",
+    "label": "linux-lab",
+    "kind": "linux",
+    "source": "ssh",
+    "sshScript": "~/path/to/ssh-linux-lab.sh",
+    "sshHost": "linux-lab.local",
+    "sshPort": 22
+  },
+  {
+    "id": "mac-lab",
+    "label": "mac-lab",
+    "kind": "darwin",
+    "source": "ssh",
+    "sshScript": "~/path/to/ssh-mac-lab.sh",
+    "sshHost": "mac-lab.local",
+    "sshPort": 22
+  }
+]

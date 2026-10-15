@@ -1,0 +1,17 @@
+node_modules/
+dist/
+debug.log
+serve-headless.log
+.serve-headless.pid
+assets/tray.png
+scripts/login-run.sh
+.idea/
+.DS_Store
+*.log
+
+# Private machine inventory and secrets (keep local only)
+config/hosts.json
+**/.env
+**/.env.*
+!**/.env.example
+!examples/env.example

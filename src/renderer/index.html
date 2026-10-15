@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title>PC monitor</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-theme="dark">
+    <div class="shell" id="shell">
+      <header class="bar">
+        <span class="brand">lan monitor</span>
+        <div class="actions">
+          <button type="button" class="chip chip-warn" id="sleep-all" title="Sleep all hosts">
+            sleep all
+          </button>
+          <button type="button" class="chip" id="fleet" title="Show fleet summary" aria-pressed="false">
+            fleet
+          </button>
+          <button type="button" class="chip chip-active" id="pin" title="Always on top (click for normal window)">
+            top
+          </button>
+          <button type="button" class="chip" id="restart" title="Restart monitor">
+            restart
+          </button>
+          <button type="button" class="chip chip-icon" id="theme" title="Light mode">
+            L
+          </button>
+          <button type="button" class="chip chip-icon chip-danger" id="quit" title="Quit">
+            x
+          </button>
+        </div>
+      </header>
+      <main id="hosts" class="hosts" aria-live="polite"></main>
+      <footer class="foot" id="foot">polling...</footer>
+      <div class="resize-grip" aria-hidden="true" title="Drag corner to resize"></div>
+    </div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
