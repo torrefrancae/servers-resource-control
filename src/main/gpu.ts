@@ -70,29 +70,73 @@ export function parseGpuLine(text: string): number | null {
   return clampPercent(Number(line[1]));
 }
 
-/* Base64-wrapped so remote login shells cannot expand $vars before python runs. */
+/* Base64-wrapped so remote login shells cannot expand $vars before python runs.
+ * Runtime counters are milliseconds. Busy% = delta_ms / (interval_s * 1000) * 100.
+ * Older formula divided by interval only, so anything above ~10% clamped to 100. */
 const LINUX_GPU_PY = `
-import re, sys, time, subprocess
+import json, re, shutil, subprocess, sys, time
 pw = sys.stdin.read()
-def runtime_ms():
-    p = subprocess.run(
-        ["sudo", "-S", "-p", "", "cat", "/sys/kernel/debug/dri/0/i915_engine_info"],
+INTERVAL = 0.4
+
+def run_sudo(args):
+    return subprocess.run(
+        ["sudo", "-S", "-p", "", *args],
         input=pw,
         text=True,
         capture_output=True,
     )
-    m = re.search(r"rcs0[\\s\\S]*?\\n\\tRuntime:\\s*(\\d+)ms", p.stdout)
+
+def from_intel_gpu_top():
+    if not shutil.which("intel_gpu_top"):
+        return None
+    p = run_sudo(["timeout", "3", "intel_gpu_top", "-J", "-s", "500"])
+    text = (p.stdout or "").strip()
+    values = []
+    depth = 0
+    start = None
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start is not None:
+                chunk = text[start:i + 1]
+                start = None
+                try:
+                    obj = json.loads(chunk)
+                except Exception:
+                    continue
+                busy = (
+                    obj.get("engines", {})
+                    .get("Render/3D", {})
+                    .get("busy")
+                )
+                if busy is not None:
+                    values.append(float(busy))
+    if not values:
+        return None
+    return max(0.0, min(100.0, values[-1]))
+
+def runtime_ms():
+    p = run_sudo(["cat", "/sys/kernel/debug/dri/0/i915_engine_info"])
+    text = p.stdout or ""
+    m = re.search(r"rcs0[\\s\\S]*?\\n\\tRuntime:\\s*(\\d+)ms", text)
     if not m:
-        m = re.search(r"Runtime:\\s*(\\d+)ms", p.stdout)
+        m = re.search(r"rcs0[\\s\\S]*?Runtime:\\s*(\\d+)ms", text)
     return int(m.group(1)) if m else None
-a = runtime_ms()
-time.sleep(0.35)
-b = runtime_ms()
-if a is None or b is None:
-    print("GPU 0")
-else:
-    util = max(0.0, min(100.0, (b - a) / 0.35))
-    print("GPU %.1f" % util)
+
+util = from_intel_gpu_top()
+if util is None:
+    a = runtime_ms()
+    time.sleep(INTERVAL)
+    b = runtime_ms()
+    if a is None or b is None or b < a:
+        util = 0.0
+    else:
+        util = max(0.0, min(100.0, (b - a) / (INTERVAL * 1000.0) * 100.0))
+print("GPU %.1f" % util)
 `.trim();
 
 function runRemoteWithStdin(
