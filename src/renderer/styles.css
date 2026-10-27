@@ -201,6 +201,28 @@ body {
   background: rgba(224, 101, 74, 0.22);
 }
 
+.chip-sched-on {
+  color: var(--hot);
+  background: var(--chip-warn-bg);
+  border-color: var(--chip-warn-border);
+}
+
+.chip-sched-on:hover:not(:disabled) {
+  color: var(--hot);
+  background: rgba(224, 101, 74, 0.22);
+}
+
+.chip-sched-off {
+  color: var(--ok);
+  background: var(--chip-ok-bg);
+  border-color: var(--chip-ok-border);
+}
+
+.chip-sched-off:hover:not(:disabled) {
+  color: var(--ok);
+  background: rgba(61, 186, 139, 0.22);
+}
+
 .timer-edit {
   display: none;
   align-items: center;

@@ -8,6 +8,22 @@ type SleepResult = {
   error?: string;
 };
 
+type ScheduleHostState = {
+  id: string;
+  label: string;
+  kind: "linux" | "darwin";
+  armed: boolean;
+  detail: string;
+  ok: boolean;
+  error?: string;
+};
+
+type ScheduleState = {
+  armed: boolean;
+  hosts: ScheduleHostState[];
+  updatedAt: number;
+};
+
 contextBridge.exposeInMainWorld("pcMonitor", {
   onMetrics: (cb: (payload: MetricsPayload) => void) => {
     const listener = (
@@ -28,4 +44,8 @@ contextBridge.exposeInMainWorld("pcMonitor", {
   sleepHost: (id: HostId): Promise<SleepResult> =>
     ipcRenderer.invoke("sleep-host", id),
   sleepAll: (): Promise<SleepResult[]> => ipcRenderer.invoke("sleep-all"),
+  getAutoSleepSchedule: (): Promise<ScheduleState> =>
+    ipcRenderer.invoke("get-auto-sleep-schedule"),
+  setAutoSleepSchedule: (armed: boolean): Promise<ScheduleState> =>
+    ipcRenderer.invoke("set-auto-sleep-schedule", armed),
 });

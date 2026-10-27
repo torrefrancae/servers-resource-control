@@ -35,6 +35,22 @@ type SleepResult = {
   error?: string;
 };
 
+type ScheduleHostState = {
+  id: string;
+  label: string;
+  kind: "linux" | "darwin";
+  armed: boolean;
+  detail: string;
+  ok: boolean;
+  error?: string;
+};
+
+type ScheduleState = {
+  armed: boolean;
+  hosts: ScheduleHostState[];
+  updatedAt: number;
+};
+
 type PcMonitorApi = {
   onMetrics: (cb: (payload: MetricsPayload) => void) => () => void;
   quit: () => void;
@@ -43,6 +59,8 @@ type PcMonitorApi = {
   setAlwaysOnTop: (next: boolean) => Promise<boolean>;
   sleepHost: (id: string) => Promise<SleepResult>;
   sleepAll: () => Promise<SleepResult[]>;
+  getAutoSleepSchedule: () => Promise<ScheduleState>;
+  setAutoSleepSchedule: (armed: boolean) => Promise<ScheduleState>;
 };
 
 declare global {
@@ -426,6 +444,83 @@ async function requestSleepAll(): Promise<void> {
   await executeSleepAll({ confirm: true });
 }
 
+let scheduleArmed: boolean | null = null;
+let scheduleBusy = false;
+
+function applyScheduleUi(state: ScheduleState | null): void {
+  const btn = document.getElementById("auto-sleep") as HTMLButtonElement | null;
+  if (!btn) return;
+  if (!state) {
+    btn.textContent = "5am";
+    btn.classList.remove("chip-sched-on", "chip-sched-off");
+    btn.title = "Loading 5am auto-sleep schedule...";
+    btn.disabled = scheduleBusy;
+    return;
+  }
+  scheduleArmed = state.armed;
+  btn.disabled = scheduleBusy;
+  btn.textContent = state.armed ? "5am on" : "5am off";
+  btn.classList.toggle("chip-sched-on", state.armed);
+  btn.classList.toggle("chip-sched-off", !state.armed);
+  btn.setAttribute("aria-pressed", String(state.armed));
+  const parts = state.hosts.map((h) => {
+    if (!h.ok) return `${h.label}: error`;
+    return `${h.label}: ${h.armed ? "armed" : "off"}`;
+  });
+  btn.title = state.armed
+    ? `Auto 5am sleep ON (${parts.join(", ")}). Click to disable.`
+    : `Auto 5am sleep OFF (${parts.join(", ")}). Click to enable.`;
+}
+
+async function refreshScheduleUi(): Promise<void> {
+  try {
+    const state = await window.pcMonitor.getAutoSleepSchedule();
+    applyScheduleUi(state);
+  } catch {
+    applyScheduleUi(null);
+    setFoot("5am schedule status failed");
+  }
+}
+
+async function toggleAutoSleepSchedule(): Promise<void> {
+  if (scheduleBusy) return;
+  const next = !(scheduleArmed ?? true);
+  scheduleBusy = true;
+  applyScheduleUi(
+    scheduleArmed == null
+      ? null
+      : {
+          armed: scheduleArmed,
+          hosts: [],
+          updatedAt: Date.now(),
+        },
+  );
+  const btn = document.getElementById("auto-sleep") as HTMLButtonElement | null;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = next ? "..." : "...";
+  }
+  setFoot(next ? "enabling 5am sleep..." : "disabling 5am sleep...");
+  try {
+    const state = await window.pcMonitor.setAutoSleepSchedule(next);
+    applyScheduleUi(state);
+    const failed = state.hosts.filter((h) => !h.ok);
+    if (failed.length) {
+      setFoot(
+        `5am schedule partial: ${failed.map((h) => h.label).join(", ")}`,
+      );
+    } else {
+      setFoot(state.armed ? "5am sleep armed" : "5am sleep disabled");
+    }
+  } catch {
+    setFoot("5am schedule toggle failed");
+    await refreshScheduleUi();
+  } finally {
+    scheduleBusy = false;
+    await refreshScheduleUi();
+  }
+}
+
 document.getElementById("quit")?.addEventListener("click", () => {
   window.pcMonitor.quit();
 });
@@ -453,6 +548,10 @@ document.getElementById("sleep-all")?.addEventListener("click", () => {
 
 document.getElementById("sleep-timer")?.addEventListener("click", () => {
   onSleepTimerClick();
+});
+
+document.getElementById("auto-sleep")?.addEventListener("click", () => {
+  void toggleAutoSleepSchedule();
 });
 
 document.getElementById("timer-set")?.addEventListener("click", () => {
@@ -490,6 +589,10 @@ document.getElementById("hosts")?.addEventListener("click", (event) => {
 applyTheme(readTheme());
 applyFleetUi(readFleetVisible());
 void window.pcMonitor.getAlwaysOnTop().then((onTop) => applyPinUi(onTop));
+void refreshScheduleUi();
+setInterval(() => {
+  void refreshScheduleUi();
+}, 60000);
 
 initSleepTimer({
   onTick: (label, at) => {

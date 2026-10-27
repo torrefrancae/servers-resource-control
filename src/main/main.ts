@@ -17,6 +17,10 @@ import {
   trackWindowState,
 } from "@src/main/window-state";
 import { sleepHost, sleepHosts } from "@src/main/sleep";
+import {
+  getAutoSleepSchedule,
+  setAutoSleepSchedule,
+} from "@src/main/schedule";
 import type { HostId } from "@src/shared/hosts";
 
 function migrateLegacyUserData(): void {
@@ -240,6 +244,10 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("sleep-host", async (_event, id: HostId) => sleepHost(id));
   ipcMain.handle("sleep-all", async () => sleepHosts());
+  ipcMain.handle("get-auto-sleep-schedule", async () => getAutoSleepSchedule());
+  ipcMain.handle("set-auto-sleep-schedule", async (_event, armed: boolean) =>
+    setAutoSleepSchedule(Boolean(armed)),
+  );
 });
 
 app.on("window-all-closed", () => {
