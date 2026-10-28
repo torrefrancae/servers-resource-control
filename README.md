@@ -19,7 +19,7 @@ I wanted a floating strip I could leave on a secondary display while coding. Bro
 
 - Local + remote host metrics (CPU / memory / GPU)
 - Fleet summary row (average of online hosts + availability), hidden until toggled
-- Per-host sleep buttons
+- Per-host power modal: sleep or restart that machine
 - Global modal: restart all, sleep all, timer all, enable/disable auto sleep
   - Restart all forces remote reboots first; this Mac restarts only if every remote confirms
   - Timer all arms a 24h `HH:MM` sleep-all countdown (fires with no confirm)

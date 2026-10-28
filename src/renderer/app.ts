@@ -60,6 +60,7 @@ type PcMonitorApi = {
   setAlwaysOnTop: (next: boolean) => Promise<boolean>;
   sleepHost: (id: string) => Promise<SleepResult>;
   sleepAll: () => Promise<SleepResult[]>;
+  restartHost: (id: string) => Promise<SleepResult>;
   restartAll: () => Promise<SleepResult[]>;
   getAutoSleepSchedule: () => Promise<ScheduleState>;
   setAutoSleepSchedule: (armed: boolean) => Promise<ScheduleState>;
@@ -86,6 +87,7 @@ function fmt(pct: number | null): string {
 const pendingSleepIds = new Set<string>();
 let sleepAllPending = false;
 let timerEditOpen = false;
+let hostModalTarget: { id: string; label: string } | null = null;
 
 function markSleepPending(id: string): void {
   pendingSleepIds.add(id);
@@ -105,12 +107,12 @@ function syncSleepButtons(hosts: HostMetrics[]): void {
 
   for (const host of hosts) {
     const btn = document.querySelector<HTMLButtonElement>(
-      `.chip-sleep[data-sleep="${host.id}"]`,
+      `.chip-host[data-host="${host.id}"]`,
     );
     if (!btn) continue;
     const waiting = pendingSleepIds.has(host.id);
     btn.disabled = waiting;
-    btn.textContent = waiting ? "zzz" : "sleep";
+    btn.textContent = waiting ? "..." : "power";
   }
 
   syncGlobalBusyUi();
@@ -155,7 +157,7 @@ function renderHost(host: HostMetrics): string {
     : host.error || host.label;
   const action = isFleet
     ? `<span class="chip chip-avail" title="Availability">${host.onlineCount || 0}/${host.hostCount || 0}</span>`
-    : `<button type="button" class="chip chip-sleep" data-sleep="${host.id}" title="Sleep ${host.label}"${waiting ? " disabled" : ""}>${waiting ? "zzz" : "sleep"}</button>`;
+    : `<button type="button" class="chip chip-host" data-host="${host.id}" title="Power options for ${host.label}"${waiting ? " disabled" : ""}>${waiting ? "..." : "power"}</button>`;
   const meters = `${meterRow("cpu", cpu)}${meterRow("mem", mem)}${meterRow("gpu", gpu)}`;
   return `
     <section class="row${isFleet ? " row-fleet" : ""}" data-id="${host.id}">
@@ -294,15 +296,30 @@ function setFoot(message: string): void {
   if (foot) foot.textContent = message;
 }
 
+function closeHostMenu(): void {
+  closeModal("host-modal", "");
+}
+
+function openHostMenu(id: string, label: string): void {
+  closeModal("global-modal", "global-toggle");
+  closeModal("app-modal", "app-toggle");
+  hostModalTarget = { id, label };
+  const modal = document.getElementById("host-modal");
+  const title = document.getElementById("host-modal-title");
+  if (title) title.textContent = label;
+  modal?.classList.add("is-open");
+  modal?.removeAttribute("hidden");
+}
+
 async function requestSleep(id: string, label: string): Promise<void> {
   if (!window.confirm(`Sleep ${label} now?`)) return;
   markSleepPending(id);
   const btn = document.querySelector<HTMLButtonElement>(
-    `.chip-sleep[data-sleep="${id}"]`,
+    `.chip-host[data-host="${id}"]`,
   );
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "zzz";
+    btn.textContent = "...";
   }
   setFoot(`sleeping ${label}...`);
   const result = await window.pcMonitor.sleepHost(id);
@@ -312,10 +329,41 @@ async function requestSleep(id: string, label: string): Promise<void> {
     clearSleepPending(id);
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "sleep";
+      btn.textContent = "power";
     }
     setFoot(`${label} sleep failed`);
     window.alert(`${label} sleep failed: ${result.error || "unknown error"}`);
+  }
+}
+
+async function requestRestart(id: string, label: string): Promise<void> {
+  if (
+    !window.confirm(
+      `Restart ${label} now? This force-reboots the machine.`,
+    )
+  ) {
+    return;
+  }
+  markSleepPending(id);
+  const btn = document.querySelector<HTMLButtonElement>(
+    `.chip-host[data-host="${id}"]`,
+  );
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "...";
+  }
+  setFoot(`restarting ${label}...`);
+  const result = await window.pcMonitor.restartHost(id);
+  if (result.ok) {
+    setFoot(`${label} restart sent`);
+  } else {
+    clearSleepPending(id);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "power";
+    }
+    setFoot(`${label} restart failed`);
+    window.alert(`${label} restart failed: ${result.error || "unknown error"}`);
   }
 }
 
@@ -399,17 +447,19 @@ function onSleepTimerClick(): void {
 
 function closeModal(id: string, toggleId: string): void {
   const modal = document.getElementById(id);
-  const toggle = document.getElementById(toggleId);
+  const toggle = toggleId ? document.getElementById(toggleId) : null;
   modal?.classList.remove("is-open");
   modal?.setAttribute("hidden", "");
   toggle?.setAttribute("aria-expanded", "false");
+  if (id === "host-modal") hostModalTarget = null;
 }
 
 function openModal(id: string, toggleId: string): void {
   closeModal("global-modal", "global-toggle");
   closeModal("app-modal", "app-toggle");
+  closeModal("host-modal", "");
   const modal = document.getElementById(id);
-  const toggle = document.getElementById(toggleId);
+  const toggle = toggleId ? document.getElementById(toggleId) : null;
   modal?.classList.add("is-open");
   modal?.removeAttribute("hidden");
   toggle?.setAttribute("aria-expanded", "true");
@@ -454,11 +504,11 @@ async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
     }
   }
   sleepAllPending = true;
-  document.querySelectorAll<HTMLButtonElement>(".chip-sleep").forEach((btn) => {
-    const id = btn.dataset.sleep;
+  document.querySelectorAll<HTMLButtonElement>(".chip-host").forEach((btn) => {
+    const id = btn.dataset.host;
     if (id) markSleepPending(id);
     btn.disabled = true;
-    btn.textContent = "zzz";
+    btn.textContent = "...";
   });
   syncGlobalBusyUi();
   setFoot(options.confirm ? "sleeping all hosts..." : "timer fired - sleeping all...");
@@ -640,6 +690,10 @@ document.getElementById("app-backdrop")?.addEventListener("click", () => {
   closeAppMenu();
 });
 
+document.getElementById("host-backdrop")?.addEventListener("click", () => {
+  closeHostMenu();
+});
+
 document.getElementById("global-modal")?.addEventListener("click", (event) => {
   const target = event.target as HTMLElement | null;
   const item = target?.closest?.("[data-global]") as HTMLButtonElement | null;
@@ -671,6 +725,7 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeGlobalMenu();
     closeAppMenu();
+    closeHostMenu();
   }
 });
 
@@ -696,14 +751,25 @@ document.getElementById("timer-input")?.addEventListener("keydown", (event) => {
 
 document.getElementById("hosts")?.addEventListener("click", (event) => {
   const target = event.target as HTMLElement | null;
-  const btn = target?.closest?.(".chip-sleep") as HTMLButtonElement | null;
+  const btn = target?.closest?.(".chip-host") as HTMLButtonElement | null;
   if (!btn || btn.disabled) return;
-  const id = btn.dataset.sleep;
+  const id = btn.dataset.host;
   if (!id) return;
   const row = btn.closest(".row");
   const label =
     row?.querySelector(".name")?.textContent?.trim() || id;
-  void requestSleep(id, label);
+  openHostMenu(id, label);
+});
+
+document.getElementById("host-modal")?.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement | null;
+  const item = target?.closest?.("[data-host-action]") as HTMLButtonElement | null;
+  if (!item || !hostModalTarget) return;
+  const action = item.dataset.hostAction;
+  const { id, label } = hostModalTarget;
+  closeHostMenu();
+  if (action === "sleep") void requestSleep(id, label);
+  else if (action === "restart") void requestRestart(id, label);
 });
 
 applyTheme(readTheme());

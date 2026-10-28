@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld("pcMonitor", {
   sleepHost: (id: HostId): Promise<SleepResult> =>
     ipcRenderer.invoke("sleep-host", id),
   sleepAll: (): Promise<SleepResult[]> => ipcRenderer.invoke("sleep-all"),
+  restartHost: (id: HostId): Promise<SleepResult> =>
+    ipcRenderer.invoke("restart-host", id),
   restartAll: (): Promise<SleepResult[]> => ipcRenderer.invoke("restart-all"),
   getAutoSleepSchedule: (): Promise<ScheduleState> =>
     ipcRenderer.invoke("get-auto-sleep-schedule"),

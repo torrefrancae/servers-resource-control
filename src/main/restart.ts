@@ -134,7 +134,7 @@ function runRemote(
   });
 }
 
-async function restartHost(host: HostConfig): Promise<RestartResult> {
+async function restartOne(host: HostConfig): Promise<RestartResult> {
   let secret = "";
   try {
     if (host.source === "local") {
@@ -198,6 +198,17 @@ async function restartHost(host: HostConfig): Promise<RestartResult> {
   }
 }
 
+export async function restartHost(id: HostId): Promise<RestartResult> {
+  if (id === "fleet") {
+    return { id, label: "fleet", ok: false, error: "fleet is summary only" };
+  }
+  const host = resolveHosts().find((h) => h.id === id);
+  if (!host) {
+    return { id, label: String(id), ok: false, error: "unknown host" };
+  }
+  return restartOne(host);
+}
+
 export async function restartHosts(): Promise<RestartResult[]> {
   const hosts = resolveHosts();
   const remotes = hosts.filter((h) => h.source === "ssh");
@@ -205,7 +216,7 @@ export async function restartHosts(): Promise<RestartResult[]> {
   const results: RestartResult[] = [];
 
   for (const host of remotes) {
-    const result = await restartHost(host);
+    const result = await restartOne(host);
     results.push(result);
   }
 
@@ -222,7 +233,7 @@ export async function restartHosts(): Promise<RestartResult[]> {
       return results;
     }
     await new Promise((r) => setTimeout(r, 900));
-    results.push(await restartHost(local));
+    results.push(await restartOne(local));
   }
 
   return results;

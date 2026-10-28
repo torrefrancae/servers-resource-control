@@ -17,7 +17,7 @@ import {
   trackWindowState,
 } from "@src/main/window-state";
 import { sleepHost, sleepHosts } from "@src/main/sleep";
-import { restartHosts } from "@src/main/restart";
+import { restartHost, restartHosts } from "@src/main/restart";
 import {
   getAutoSleepSchedule,
   setAutoSleepSchedule,
@@ -245,6 +245,7 @@ app.whenReady().then(() => {
   });
   ipcMain.handle("sleep-host", async (_event, id: HostId) => sleepHost(id));
   ipcMain.handle("sleep-all", async () => sleepHosts());
+  ipcMain.handle("restart-host", async (_event, id: HostId) => restartHost(id));
   ipcMain.handle("restart-all", async () => restartHosts());
   ipcMain.handle("get-auto-sleep-schedule", async () => getAutoSleepSchedule());
   ipcMain.handle("set-auto-sleep-schedule", async (_event, armed: boolean) =>

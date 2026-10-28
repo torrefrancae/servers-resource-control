@@ -157,6 +157,16 @@ body {
   width: min(100%, 340px);
 }
 
+.action-modal-title {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--muted);
+  font-size: clamp(8px, 2vw, 11px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 4px 2px;
+}
+
 .action-option {
   -webkit-app-region: no-drag;
   border: 1px solid var(--line);
@@ -255,14 +265,14 @@ body {
   border-color: var(--chip-warn-border);
 }
 
-.chip-sleep {
+.chip-host {
   color: var(--ok);
   background: var(--chip-ok-bg);
   border-color: var(--chip-ok-border);
   padding: 2px 7px;
 }
 
-.chip-sleep:hover:not(:disabled) {
+.chip-host:hover:not(:disabled) {
   color: var(--ok);
   background: rgba(61, 186, 139, 0.2);
 }

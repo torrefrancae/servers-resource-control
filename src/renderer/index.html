@@ -105,6 +105,18 @@
           </button>
         </div>
       </div>
+      <div class="action-modal" id="host-modal" hidden>
+        <button type="button" class="action-modal-backdrop" id="host-backdrop" aria-label="Close host actions"></button>
+        <div class="action-modal-card cols-2" role="dialog" aria-modal="true" aria-labelledby="host-modal-title">
+          <div class="action-modal-title" id="host-modal-title">host</div>
+          <button type="button" class="action-option chip-warn" data-host-action="sleep">
+            sleep
+          </button>
+          <button type="button" class="action-option chip-warn" data-host-action="restart">
+            restart
+          </button>
+        </div>
+      </div>
     </div>
     <script type="module" src="./app.js"></script>
   </body>
