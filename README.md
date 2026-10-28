@@ -19,8 +19,10 @@ I wanted a floating strip I could leave on a secondary display while coding. Bro
 
 - Local + remote host metrics (CPU / memory / GPU)
 - Fleet summary row (average of online hosts + availability), hidden until toggled
-- Per-host sleep and sleep-all (macOS `pmset`, Linux `systemctl suspend`)
-- Sleep timer: set a 24h `HH:MM` target, countdown in the header, then sleep all with no confirm prompt
+- Per-host sleep buttons
+- Global menu: restart all, sleep all, timer all
+  - Restart all forces remote reboots first; this Mac restarts only if every remote confirms
+  - Timer all arms a 24h `HH:MM` sleep-all countdown (fires with no confirm)
 - `5am` toggle: enable/disable overnight auto-sleep schedules on managed LAN hosts (macOS `pmset` repeat sleep, Linux `cctv-sleep.timer`)
 - Always-on-top toggle vs normal window level
 - Light / dark theme

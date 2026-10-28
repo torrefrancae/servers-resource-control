@@ -14,15 +14,29 @@
       <header class="bar">
         <span class="brand">servers</span>
         <div class="actions">
-          <button type="button" class="chip chip-warn" id="sleep-all" title="Sleep all hosts">
-            sleep all
-          </button>
-          <button type="button" class="chip" id="sleep-timer" title="Set sleep-all timer (HH:MM 24h)" aria-pressed="false">
-            timer
-          </button>
-          <button type="button" class="chip" id="auto-sleep" title="Loading 5am auto-sleep schedule..." aria-pressed="false">
-            5am
-          </button>
+          <div class="menu" id="global-menu">
+            <button
+              type="button"
+              class="chip chip-warn"
+              id="global-toggle"
+              title="Global actions"
+              aria-haspopup="menu"
+              aria-expanded="false"
+            >
+              global
+            </button>
+            <div class="menu-panel" id="global-panel" role="menu" hidden>
+              <button type="button" class="menu-item" role="menuitem" data-global="restart-all">
+                restart all
+              </button>
+              <button type="button" class="menu-item" role="menuitem" data-global="sleep-all">
+                sleep all
+              </button>
+              <button type="button" class="menu-item" role="menuitem" id="sleep-timer" data-global="timer-all">
+                timer all
+              </button>
+            </div>
+          </div>
           <div class="timer-edit" id="timer-edit" hidden>
             <input
               id="timer-input"
@@ -43,14 +57,17 @@
               x
             </button>
           </div>
+          <button type="button" class="chip" id="auto-sleep" title="Loading 5am auto-sleep schedule..." aria-pressed="false">
+            5am
+          </button>
           <button type="button" class="chip" id="fleet" title="Show fleet summary" aria-pressed="false">
             fleet
           </button>
           <button type="button" class="chip chip-active" id="pin" title="Always on top (click for normal window)">
             top
           </button>
-          <button type="button" class="chip" id="restart" title="Restart monitor">
-            restart
+          <button type="button" class="chip" id="restart" title="Restart monitor app">
+            app
           </button>
           <button type="button" class="chip chip-icon" id="theme" title="Light mode">
             L

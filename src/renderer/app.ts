@@ -33,6 +33,7 @@ type SleepResult = {
   label: string;
   ok: boolean;
   error?: string;
+  skipped?: boolean;
 };
 
 type ScheduleHostState = {
@@ -59,6 +60,7 @@ type PcMonitorApi = {
   setAlwaysOnTop: (next: boolean) => Promise<boolean>;
   sleepHost: (id: string) => Promise<SleepResult>;
   sleepAll: () => Promise<SleepResult[]>;
+  restartAll: () => Promise<SleepResult[]>;
   getAutoSleepSchedule: () => Promise<ScheduleState>;
   setAutoSleepSchedule: (armed: boolean) => Promise<ScheduleState>;
 };
@@ -83,6 +85,7 @@ function fmt(pct: number | null): string {
 
 const pendingSleepIds = new Set<string>();
 let sleepAllPending = false;
+let timerEditOpen = false;
 
 function markSleepPending(id: string): void {
   pendingSleepIds.add(id);
@@ -110,12 +113,16 @@ function syncSleepButtons(hosts: HostMetrics[]): void {
     btn.textContent = waiting ? "zzz" : "sleep";
   }
 
-  const allBtn = document.getElementById("sleep-all") as HTMLButtonElement | null;
-  if (allBtn) {
-    const waitingAll = sleepAllPending && pendingSleepIds.size > 0;
-    allBtn.disabled = waitingAll;
-    allBtn.textContent = waitingAll ? "zzz" : "sleep all";
-  }
+  syncGlobalBusyUi();
+}
+
+function syncGlobalBusyUi(): void {
+  const toggle = document.getElementById("global-toggle") as HTMLButtonElement | null;
+  if (!toggle || isSleepTimerActive() || timerEditOpen) return;
+  const waitingAll = sleepAllPending && pendingSleepIds.size > 0;
+  toggle.disabled = waitingAll;
+  if (waitingAll) toggle.textContent = "zzz";
+  else if (!toggle.classList.contains("chip-timer-on")) toggle.textContent = "global";
 }
 
 function meterRow(label: string, pct: number | null): string {
@@ -312,8 +319,6 @@ async function requestSleep(id: string, label: string): Promise<void> {
   }
 }
 
-let timerEditOpen = false;
-
 function defaultTimerSuggestion(): string {
   const d = new Date();
   d.setMinutes(d.getMinutes() + 30);
@@ -321,18 +326,21 @@ function defaultTimerSuggestion(): string {
 }
 
 function applyTimerUi(label: string | null, targetAt: number | null): void {
-  const btn = document.getElementById("sleep-timer");
+  const btn = document.getElementById("global-toggle");
+  const timerItem = document.getElementById("sleep-timer");
   if (!btn) return;
   const active = targetAt != null;
   btn.classList.toggle("chip-timer-on", active);
   btn.setAttribute("aria-pressed", String(active));
-  btn.hidden = timerEditOpen;
   if (active && label) {
     btn.textContent = label;
-    btn.title = `Sleep all at ${formatTargetLabel(targetAt)} (click to cancel)`;
-  } else {
-    btn.textContent = "timer";
-    btn.title = "Set sleep-all timer (HH:MM 24h)";
+    btn.title = `Sleep all at ${formatTargetLabel(targetAt)} (click global menu; timer all cancels)`;
+  } else if (!timerEditOpen) {
+    btn.textContent = "global";
+    btn.title = "Global actions";
+  }
+  if (timerItem) {
+    timerItem.textContent = active ? "cancel timer" : "timer all";
   }
 }
 
@@ -347,10 +355,9 @@ function closeTimerEdit(): void {
 
 function openTimerEdit(): void {
   timerEditOpen = true;
+  closeGlobalMenu();
   const edit = document.getElementById("timer-edit");
   const input = document.getElementById("timer-input") as HTMLInputElement | null;
-  const btn = document.getElementById("sleep-timer");
-  if (btn) btn.hidden = true;
   edit?.classList.add("is-open");
   edit?.removeAttribute("hidden");
   if (input) {
@@ -381,12 +388,35 @@ function commitTimerEdit(): void {
 }
 
 function onSleepTimerClick(): void {
+  closeGlobalMenu();
   if (isSleepTimerActive()) {
     clearSleepTimer();
     setFoot("timer cancelled");
     return;
   }
   openTimerEdit();
+}
+
+function closeGlobalMenu(): void {
+  const panel = document.getElementById("global-panel");
+  const toggle = document.getElementById("global-toggle");
+  panel?.classList.remove("is-open");
+  panel?.setAttribute("hidden", "");
+  toggle?.setAttribute("aria-expanded", "false");
+}
+
+function openGlobalMenu(): void {
+  const panel = document.getElementById("global-panel");
+  const toggle = document.getElementById("global-toggle");
+  panel?.classList.add("is-open");
+  panel?.removeAttribute("hidden");
+  toggle?.setAttribute("aria-expanded", "true");
+}
+
+function toggleGlobalMenu(): void {
+  const panel = document.getElementById("global-panel");
+  if (panel?.classList.contains("is-open")) closeGlobalMenu();
+  else openGlobalMenu();
 }
 
 async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
@@ -406,11 +436,7 @@ async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
     btn.disabled = true;
     btn.textContent = "zzz";
   });
-  const allBtn = document.getElementById("sleep-all") as HTMLButtonElement | null;
-  if (allBtn) {
-    allBtn.disabled = true;
-    allBtn.textContent = "zzz";
-  }
+  syncGlobalBusyUi();
   setFoot(options.confirm ? "sleeping all hosts..." : "timer fired - sleeping all...");
   const results = await window.pcMonitor.sleepAll();
   const failed = results.filter((r) => !r.ok);
@@ -438,10 +464,49 @@ async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
   } else {
     setFoot("sleep all sent");
   }
+  syncGlobalBusyUi();
 }
 
 async function requestSleepAll(): Promise<void> {
   await executeSleepAll({ confirm: true });
+}
+
+async function requestRestartAll(): Promise<void> {
+  if (
+    !window.confirm(
+      "Restart ALL hosts? Remotes first (forced). This Mac restarts only if every remote succeeds.",
+    )
+  ) {
+    return;
+  }
+  closeGlobalMenu();
+  const toggle = document.getElementById("global-toggle") as HTMLButtonElement | null;
+  if (toggle) {
+    toggle.disabled = true;
+    toggle.textContent = "rebooting";
+  }
+  setFoot("restarting remotes...");
+  const results = await window.pcMonitor.restartAll();
+  const failed = results.filter((r) => !r.ok);
+  const skipped = results.filter((r) => r.skipped);
+  if (failed.length) {
+    setFoot(
+      skipped.length
+        ? `restart aborted - remotes failed (${results.length - failed.length}/${results.length - skipped.length})`
+        : `restart partial (${results.length - failed.length}/${results.length})`,
+    );
+    window.alert(
+      failed
+        .map((r) => `${r.label}: ${r.error || (r.skipped ? "skipped" : "failed")}`)
+        .join("\n"),
+    );
+  } else {
+    setFoot("restart all sent");
+  }
+  if (toggle && !isSleepTimerActive()) {
+    toggle.disabled = false;
+    toggle.textContent = "global";
+  }
 }
 
 let scheduleArmed: boolean | null = null;
@@ -542,12 +607,27 @@ document.getElementById("fleet")?.addEventListener("click", () => {
   toggleFleet();
 });
 
-document.getElementById("sleep-all")?.addEventListener("click", () => {
-  void requestSleepAll();
+document.getElementById("global-toggle")?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleGlobalMenu();
 });
 
-document.getElementById("sleep-timer")?.addEventListener("click", () => {
-  onSleepTimerClick();
+document.getElementById("global-panel")?.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement | null;
+  const item = target?.closest?.("[data-global]") as HTMLButtonElement | null;
+  if (!item) return;
+  const action = item.dataset.global;
+  if (action === "restart-all") void requestRestartAll();
+  else if (action === "sleep-all") {
+    closeGlobalMenu();
+    void requestSleepAll();
+  } else if (action === "timer-all") onSleepTimerClick();
+});
+
+document.addEventListener("click", (event) => {
+  const menu = document.getElementById("global-menu");
+  const target = event.target as Node | null;
+  if (menu && target && !menu.contains(target)) closeGlobalMenu();
 });
 
 document.getElementById("auto-sleep")?.addEventListener("click", () => {

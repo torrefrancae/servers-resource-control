@@ -6,6 +6,7 @@ type SleepResult = {
   label: string;
   ok: boolean;
   error?: string;
+  skipped?: boolean;
 };
 
 type ScheduleHostState = {
@@ -44,6 +45,7 @@ contextBridge.exposeInMainWorld("pcMonitor", {
   sleepHost: (id: HostId): Promise<SleepResult> =>
     ipcRenderer.invoke("sleep-host", id),
   sleepAll: (): Promise<SleepResult[]> => ipcRenderer.invoke("sleep-all"),
+  restartAll: (): Promise<SleepResult[]> => ipcRenderer.invoke("restart-all"),
   getAutoSleepSchedule: (): Promise<ScheduleState> =>
     ipcRenderer.invoke("get-auto-sleep-schedule"),
   setAutoSleepSchedule: (armed: boolean): Promise<ScheduleState> =>

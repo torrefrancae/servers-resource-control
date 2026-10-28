@@ -110,6 +110,53 @@ body {
   justify-content: flex-end;
 }
 
+.menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+}
+
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  min-width: 118px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-top);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.menu-panel.is-open {
+  display: flex;
+}
+
+.menu-item {
+  -webkit-app-region: no-drag;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: clamp(8px, 2vw, 10px);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 6px 8px;
+}
+
+.menu-item:hover {
+  color: var(--text);
+  background: var(--btn-hover);
+}
+
 .chip {
   -webkit-app-region: no-drag;
   border: 1px solid var(--line);
