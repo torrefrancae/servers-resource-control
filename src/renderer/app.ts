@@ -275,7 +275,7 @@ function applyPinUi(onTop: boolean): void {
   pinnedOnTop = onTop;
   const btn = document.getElementById("pin");
   if (!btn) return;
-  btn.textContent = onTop ? "top" : "norm";
+  btn.textContent = onTop ? "always on top" : "default level";
   btn.classList.toggle("chip-active", onTop);
   btn.setAttribute("aria-pressed", String(onTop));
   btn.title = onTop
@@ -397,26 +397,50 @@ function onSleepTimerClick(): void {
   openTimerEdit();
 }
 
-function closeGlobalMenu(): void {
-  const modal = document.getElementById("global-modal");
-  const toggle = document.getElementById("global-toggle");
+function closeModal(id: string, toggleId: string): void {
+  const modal = document.getElementById(id);
+  const toggle = document.getElementById(toggleId);
   modal?.classList.remove("is-open");
   modal?.setAttribute("hidden", "");
   toggle?.setAttribute("aria-expanded", "false");
 }
 
-function openGlobalMenu(): void {
-  const modal = document.getElementById("global-modal");
-  const toggle = document.getElementById("global-toggle");
+function openModal(id: string, toggleId: string): void {
+  closeModal("global-modal", "global-toggle");
+  closeModal("app-modal", "app-toggle");
+  const modal = document.getElementById(id);
+  const toggle = document.getElementById(toggleId);
   modal?.classList.add("is-open");
   modal?.removeAttribute("hidden");
   toggle?.setAttribute("aria-expanded", "true");
+}
+
+function closeGlobalMenu(): void {
+  closeModal("global-modal", "global-toggle");
+}
+
+function openGlobalMenu(): void {
+  openModal("global-modal", "global-toggle");
 }
 
 function toggleGlobalMenu(): void {
   const modal = document.getElementById("global-modal");
   if (modal?.classList.contains("is-open")) closeGlobalMenu();
   else openGlobalMenu();
+}
+
+function closeAppMenu(): void {
+  closeModal("app-modal", "app-toggle");
+}
+
+function openAppMenu(): void {
+  openModal("app-modal", "app-toggle");
+}
+
+function toggleAppMenu(): void {
+  const modal = document.getElementById("app-modal");
+  if (modal?.classList.contains("is-open")) closeAppMenu();
+  else openAppMenu();
 }
 
 async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
@@ -590,17 +614,8 @@ document.getElementById("quit")?.addEventListener("click", () => {
   window.pcMonitor.quit();
 });
 
-document.getElementById("restart")?.addEventListener("click", () => {
-  setFoot("restarting...");
-  window.pcMonitor.restart();
-});
-
 document.getElementById("theme")?.addEventListener("click", () => {
   toggleTheme();
-});
-
-document.getElementById("pin")?.addEventListener("click", () => {
-  void togglePin();
 });
 
 document.getElementById("fleet")?.addEventListener("click", () => {
@@ -612,8 +627,17 @@ document.getElementById("global-toggle")?.addEventListener("click", (event) => {
   toggleGlobalMenu();
 });
 
+document.getElementById("app-toggle")?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  toggleAppMenu();
+});
+
 document.getElementById("global-backdrop")?.addEventListener("click", () => {
   closeGlobalMenu();
+});
+
+document.getElementById("app-backdrop")?.addEventListener("click", () => {
+  closeAppMenu();
 });
 
 document.getElementById("global-modal")?.addEventListener("click", (event) => {
@@ -628,8 +652,25 @@ document.getElementById("global-modal")?.addEventListener("click", (event) => {
   } else if (action === "timer-all") onSleepTimerClick();
 });
 
+document.getElementById("app-modal")?.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement | null;
+  const item = target?.closest?.("[data-app]") as HTMLButtonElement | null;
+  if (!item) return;
+  const action = item.dataset.app;
+  if (action === "restart") {
+    closeAppMenu();
+    setFoot("restarting...");
+    window.pcMonitor.restart();
+  } else if (action === "pin") {
+    void togglePin();
+  }
+});
+
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeGlobalMenu();
+  if (event.key === "Escape") {
+    closeGlobalMenu();
+    closeAppMenu();
+  }
 });
 
 document.getElementById("auto-sleep")?.addEventListener("click", () => {

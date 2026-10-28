@@ -51,10 +51,15 @@
           <button type="button" class="chip" id="fleet" title="Show fleet summary" aria-pressed="false">
             fleet
           </button>
-          <button type="button" class="chip chip-active" id="pin" title="Always on top (click for normal window)">
-            top
-          </button>
-          <button type="button" class="chip" id="restart" title="Restart monitor app">
+          <button
+            type="button"
+            class="chip"
+            id="app-toggle"
+            title="App options"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="app-modal"
+          >
             app
           </button>
           <button type="button" class="chip chip-icon" id="theme" title="Light mode">
@@ -68,17 +73,28 @@
       <main id="hosts" class="hosts" aria-live="polite"></main>
       <footer class="foot" id="foot">polling...</footer>
       <div class="resize-grip" aria-hidden="true" title="Drag corner to resize"></div>
-      <div class="global-modal" id="global-modal" hidden>
-        <button type="button" class="global-modal-backdrop" id="global-backdrop" aria-label="Close global actions"></button>
-        <div class="global-modal-card" role="dialog" aria-modal="true" aria-label="Global actions">
-          <button type="button" class="global-option chip-warn" data-global="restart-all">
+      <div class="action-modal" id="global-modal" hidden>
+        <button type="button" class="action-modal-backdrop" id="global-backdrop" aria-label="Close global actions"></button>
+        <div class="action-modal-card cols-3" role="dialog" aria-modal="true" aria-label="Global actions">
+          <button type="button" class="action-option chip-warn" data-global="restart-all">
             restart all
           </button>
-          <button type="button" class="global-option chip-warn" data-global="sleep-all">
+          <button type="button" class="action-option chip-warn" data-global="sleep-all">
             sleep all
           </button>
-          <button type="button" class="global-option" id="sleep-timer" data-global="timer-all">
+          <button type="button" class="action-option" id="sleep-timer" data-global="timer-all">
             timer all
+          </button>
+        </div>
+      </div>
+      <div class="action-modal" id="app-modal" hidden>
+        <button type="button" class="action-modal-backdrop" id="app-backdrop" aria-label="Close app options"></button>
+        <div class="action-modal-card cols-2" role="dialog" aria-modal="true" aria-label="App options">
+          <button type="button" class="action-option" data-app="restart">
+            restart app
+          </button>
+          <button type="button" class="action-option chip-active" id="pin" data-app="pin" aria-pressed="true">
+            always on top
           </button>
         </div>
       </div>

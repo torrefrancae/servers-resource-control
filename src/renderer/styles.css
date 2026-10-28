@@ -110,7 +110,7 @@ body {
   justify-content: flex-end;
 }
 
-.global-modal {
+.action-modal {
   position: absolute;
   inset: 0;
   z-index: 50;
@@ -121,11 +121,11 @@ body {
   -webkit-app-region: no-drag;
 }
 
-.global-modal.is-open {
+.action-modal.is-open {
   display: flex;
 }
 
-.global-modal-backdrop {
+.action-modal-backdrop {
   position: absolute;
   inset: 0;
   border: 0;
@@ -135,11 +135,10 @@ body {
   background: rgba(4, 6, 10, 0.72);
 }
 
-.global-modal-card {
+.action-modal-card {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   width: min(100%, 420px);
   padding: 10px;
@@ -149,7 +148,16 @@ body {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
 }
 
-.global-option {
+.action-modal-card.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.action-modal-card.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 300px);
+}
+
+.action-option {
   -webkit-app-region: no-drag;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -166,20 +174,31 @@ body {
   line-height: 1.2;
 }
 
-.global-option:hover {
+.action-option:hover {
   color: var(--text);
   background: var(--btn-hover);
 }
 
-.global-option.chip-warn {
+.action-option.chip-warn {
   color: var(--hot);
   background: var(--chip-warn-bg);
   border-color: var(--chip-warn-border);
 }
 
-.global-option.chip-warn:hover {
+.action-option.chip-warn:hover {
   color: var(--hot);
   background: rgba(224, 101, 74, 0.22);
+}
+
+.action-option.chip-active {
+  color: var(--ok);
+  background: var(--chip-ok-bg);
+  border-color: var(--chip-ok-border);
+}
+
+.action-option.chip-active:hover {
+  color: var(--ok);
+  background: rgba(61, 186, 139, 0.22);
 }
 
 .chip {
