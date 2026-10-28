@@ -540,25 +540,25 @@ function applyScheduleUi(state: ScheduleState | null): void {
   const btn = document.getElementById("auto-sleep") as HTMLButtonElement | null;
   if (!btn) return;
   if (!state) {
-    btn.textContent = "5am";
-    btn.classList.remove("chip-sched-on", "chip-sched-off");
-    btn.title = "Loading 5am auto-sleep schedule...";
+    btn.textContent = "disable auto sleep";
+    btn.classList.remove("chip-warn", "chip-active");
+    btn.title = "Loading auto-sleep schedule...";
     btn.disabled = scheduleBusy;
     return;
   }
   scheduleArmed = state.armed;
   btn.disabled = scheduleBusy;
-  btn.textContent = state.armed ? "5am on" : "5am off";
-  btn.classList.toggle("chip-sched-on", state.armed);
-  btn.classList.toggle("chip-sched-off", !state.armed);
+  btn.textContent = state.armed ? "disable auto sleep" : "enable auto sleep";
+  btn.classList.toggle("chip-warn", state.armed);
+  btn.classList.toggle("chip-active", !state.armed);
   btn.setAttribute("aria-pressed", String(state.armed));
   const parts = state.hosts.map((h) => {
     if (!h.ok) return `${h.label}: error`;
     return `${h.label}: ${h.armed ? "armed" : "off"}`;
   });
   btn.title = state.armed
-    ? `Auto 5am sleep ON (${parts.join(", ")}). Click to disable.`
-    : `Auto 5am sleep OFF (${parts.join(", ")}). Click to enable.`;
+    ? `Auto sleep ON (${parts.join(", ")}). Click to disable.`
+    : `Auto sleep OFF (${parts.join(", ")}). Click to enable.`;
 }
 
 async function refreshScheduleUi(): Promise<void> {
@@ -587,22 +587,22 @@ async function toggleAutoSleepSchedule(): Promise<void> {
   const btn = document.getElementById("auto-sleep") as HTMLButtonElement | null;
   if (btn) {
     btn.disabled = true;
-    btn.textContent = next ? "..." : "...";
+    btn.textContent = "...";
   }
-  setFoot(next ? "enabling 5am sleep..." : "disabling 5am sleep...");
+  setFoot(next ? "enabling auto sleep..." : "disabling auto sleep...");
   try {
     const state = await window.pcMonitor.setAutoSleepSchedule(next);
     applyScheduleUi(state);
     const failed = state.hosts.filter((h) => !h.ok);
     if (failed.length) {
       setFoot(
-        `5am schedule partial: ${failed.map((h) => h.label).join(", ")}`,
+        `auto sleep partial: ${failed.map((h) => h.label).join(", ")}`,
       );
     } else {
-      setFoot(state.armed ? "5am sleep armed" : "5am sleep disabled");
+      setFoot(state.armed ? "auto sleep armed" : "auto sleep disabled");
     }
   } catch {
-    setFoot("5am schedule toggle failed");
+    setFoot("auto sleep toggle failed");
     await refreshScheduleUi();
   } finally {
     scheduleBusy = false;
@@ -650,6 +650,7 @@ document.getElementById("global-modal")?.addEventListener("click", (event) => {
     closeGlobalMenu();
     void requestSleepAll();
   } else if (action === "timer-all") onSleepTimerClick();
+  else if (action === "auto-sleep") void toggleAutoSleepSchedule();
 });
 
 document.getElementById("app-modal")?.addEventListener("click", (event) => {
@@ -671,10 +672,6 @@ document.addEventListener("keydown", (event) => {
     closeGlobalMenu();
     closeAppMenu();
   }
-});
-
-document.getElementById("auto-sleep")?.addEventListener("click", () => {
-  void toggleAutoSleepSchedule();
 });
 
 document.getElementById("timer-set")?.addEventListener("click", () => {

@@ -45,9 +45,6 @@
               x
             </button>
           </div>
-          <button type="button" class="chip" id="auto-sleep" title="Loading 5am auto-sleep schedule..." aria-pressed="false">
-            5am
-          </button>
           <button type="button" class="chip" id="fleet" title="Show fleet summary" aria-pressed="false">
             fleet
           </button>
@@ -75,7 +72,7 @@
       <div class="resize-grip" aria-hidden="true" title="Drag corner to resize"></div>
       <div class="action-modal" id="global-modal" hidden>
         <button type="button" class="action-modal-backdrop" id="global-backdrop" aria-label="Close global actions"></button>
-        <div class="action-modal-card cols-3" role="dialog" aria-modal="true" aria-label="Global actions">
+        <div class="action-modal-card cols-2" role="dialog" aria-modal="true" aria-label="Global actions">
           <button type="button" class="action-option chip-warn" data-global="restart-all">
             restart all
           </button>
@@ -84,6 +81,16 @@
           </button>
           <button type="button" class="action-option" id="sleep-timer" data-global="timer-all">
             timer all
+          </button>
+          <button
+            type="button"
+            class="action-option"
+            id="auto-sleep"
+            data-global="auto-sleep"
+            title="Loading auto-sleep schedule..."
+            aria-pressed="false"
+          >
+            disable auto sleep
           </button>
         </div>
       </div>

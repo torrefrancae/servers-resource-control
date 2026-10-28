@@ -154,7 +154,7 @@ body {
 
 .action-modal-card.cols-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: min(100%, 300px);
+  width: min(100%, 340px);
 }
 
 .action-option {
