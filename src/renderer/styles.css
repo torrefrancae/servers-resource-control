@@ -110,51 +110,76 @@ body {
   justify-content: flex-end;
 }
 
-.menu {
-  position: relative;
-  display: inline-flex;
+.global-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: none;
   align-items: center;
+  justify-content: center;
+  padding: 10px;
   -webkit-app-region: no-drag;
 }
 
-.menu-panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 40;
-  min-width: 118px;
-  display: none;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg-top);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-}
-
-.menu-panel.is-open {
+.global-modal.is-open {
   display: flex;
 }
 
-.menu-item {
-  -webkit-app-region: no-drag;
+.global-modal-backdrop {
+  position: absolute;
+  inset: 0;
   border: 0;
-  border-radius: 7px;
-  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: rgba(4, 6, 10, 0.72);
+}
+
+.global-modal-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 420px);
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-top);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+.global-option {
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--btn-fill);
   color: var(--muted);
   cursor: pointer;
   font: inherit;
-  font-size: clamp(8px, 2vw, 10px);
+  font-size: clamp(8px, 2vw, 11px);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  text-align: left;
-  padding: 6px 8px;
+  text-align: center;
+  padding: 10px 8px;
+  min-height: 36px;
+  line-height: 1.2;
 }
 
-.menu-item:hover {
+.global-option:hover {
   color: var(--text);
   background: var(--btn-hover);
+}
+
+.global-option.chip-warn {
+  color: var(--hot);
+  background: var(--chip-warn-bg);
+  border-color: var(--chip-warn-border);
+}
+
+.global-option.chip-warn:hover {
+  color: var(--hot);
+  background: rgba(224, 101, 74, 0.22);
 }
 
 .chip {

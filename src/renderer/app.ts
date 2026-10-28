@@ -398,24 +398,24 @@ function onSleepTimerClick(): void {
 }
 
 function closeGlobalMenu(): void {
-  const panel = document.getElementById("global-panel");
+  const modal = document.getElementById("global-modal");
   const toggle = document.getElementById("global-toggle");
-  panel?.classList.remove("is-open");
-  panel?.setAttribute("hidden", "");
+  modal?.classList.remove("is-open");
+  modal?.setAttribute("hidden", "");
   toggle?.setAttribute("aria-expanded", "false");
 }
 
 function openGlobalMenu(): void {
-  const panel = document.getElementById("global-panel");
+  const modal = document.getElementById("global-modal");
   const toggle = document.getElementById("global-toggle");
-  panel?.classList.add("is-open");
-  panel?.removeAttribute("hidden");
+  modal?.classList.add("is-open");
+  modal?.removeAttribute("hidden");
   toggle?.setAttribute("aria-expanded", "true");
 }
 
 function toggleGlobalMenu(): void {
-  const panel = document.getElementById("global-panel");
-  if (panel?.classList.contains("is-open")) closeGlobalMenu();
+  const modal = document.getElementById("global-modal");
+  if (modal?.classList.contains("is-open")) closeGlobalMenu();
   else openGlobalMenu();
 }
 
@@ -612,7 +612,11 @@ document.getElementById("global-toggle")?.addEventListener("click", (event) => {
   toggleGlobalMenu();
 });
 
-document.getElementById("global-panel")?.addEventListener("click", (event) => {
+document.getElementById("global-backdrop")?.addEventListener("click", () => {
+  closeGlobalMenu();
+});
+
+document.getElementById("global-modal")?.addEventListener("click", (event) => {
   const target = event.target as HTMLElement | null;
   const item = target?.closest?.("[data-global]") as HTMLButtonElement | null;
   if (!item) return;
@@ -624,10 +628,8 @@ document.getElementById("global-panel")?.addEventListener("click", (event) => {
   } else if (action === "timer-all") onSleepTimerClick();
 });
 
-document.addEventListener("click", (event) => {
-  const menu = document.getElementById("global-menu");
-  const target = event.target as Node | null;
-  if (menu && target && !menu.contains(target)) closeGlobalMenu();
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeGlobalMenu();
 });
 
 document.getElementById("auto-sleep")?.addEventListener("click", () => {

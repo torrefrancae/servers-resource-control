@@ -14,29 +14,17 @@
       <header class="bar">
         <span class="brand">servers</span>
         <div class="actions">
-          <div class="menu" id="global-menu">
-            <button
-              type="button"
-              class="chip chip-warn"
-              id="global-toggle"
-              title="Global actions"
-              aria-haspopup="menu"
-              aria-expanded="false"
-            >
-              global
-            </button>
-            <div class="menu-panel" id="global-panel" role="menu" hidden>
-              <button type="button" class="menu-item" role="menuitem" data-global="restart-all">
-                restart all
-              </button>
-              <button type="button" class="menu-item" role="menuitem" data-global="sleep-all">
-                sleep all
-              </button>
-              <button type="button" class="menu-item" role="menuitem" id="sleep-timer" data-global="timer-all">
-                timer all
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            class="chip chip-warn"
+            id="global-toggle"
+            title="Global actions"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="global-modal"
+          >
+            global
+          </button>
           <div class="timer-edit" id="timer-edit" hidden>
             <input
               id="timer-input"
@@ -80,6 +68,20 @@
       <main id="hosts" class="hosts" aria-live="polite"></main>
       <footer class="foot" id="foot">polling...</footer>
       <div class="resize-grip" aria-hidden="true" title="Drag corner to resize"></div>
+      <div class="global-modal" id="global-modal" hidden>
+        <button type="button" class="global-modal-backdrop" id="global-backdrop" aria-label="Close global actions"></button>
+        <div class="global-modal-card" role="dialog" aria-modal="true" aria-label="Global actions">
+          <button type="button" class="global-option chip-warn" data-global="restart-all">
+            restart all
+          </button>
+          <button type="button" class="global-option chip-warn" data-global="sleep-all">
+            sleep all
+          </button>
+          <button type="button" class="global-option" id="sleep-timer" data-global="timer-all">
+            timer all
+          </button>
+        </div>
+      </div>
     </div>
     <script type="module" src="./app.js"></script>
   </body>
