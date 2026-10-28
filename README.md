@@ -63,9 +63,20 @@ npm start
 Detached / restore helpers:
 
 ```bash
-./serve.sh --headless          # start in background
-./serve.sh --stop              # stop
-./serve.sh --install-login     # macOS login item via LaunchAgent
+server-monitor            # start (also: start|open|run)
+server-monitor stop
+server-monitor restart
+server-monitor status
+server-monitor login      # macOS login auto-start
+server-monitor logout
+```
+
+Or from the repo:
+
+```bash
+./serve.sh --headless
+./serve.sh --stop
+./serve.sh --install-login
 ./serve.sh --uninstall-login
 ```
 

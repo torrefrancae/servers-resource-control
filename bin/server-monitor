@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Global CLI for servers-resource-control.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SERVE="$ROOT/serve.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: server-monitor [command]
+
+Commands:
+  start      Start the floating panel in the background (default)
+  stop       Stop the panel
+  restart    Stop then start
+  status     Show whether it is running
+  login      Install macOS login auto-start
+  logout     Remove macOS login auto-start
+  help       Show this help
+EOF
+}
+
+is_running() {
+  if [[ -f "$ROOT/.serve-headless.pid" ]]; then
+    local pid
+    pid="$(cat "$ROOT/.serve-headless.pid" 2>/dev/null || true)"
+    if [[ -n "${pid:-}" ]] && kill -0 "$pid" 2>/dev/null; then
+      echo "$pid"
+      return 0
+    fi
+  fi
+  pgrep -f "/servers-resource-control/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" 2>/dev/null | head -1
+}
+
+cmd="${1:-start}"
+case "$cmd" in
+  start|open|run|"")
+    exec /bin/bash "$SERVE" --headless
+    ;;
+  stop)
+    exec /bin/bash "$SERVE" --stop
+    ;;
+  restart)
+    /bin/bash "$SERVE" --stop || true
+    exec /bin/bash "$SERVE" --headless
+    ;;
+  status)
+    pid="$(is_running || true)"
+    if [[ -n "${pid:-}" ]]; then
+      echo "server-monitor running pid=$pid"
+      exit 0
+    fi
+    echo "server-monitor not running"
+    exit 1
+    ;;
+  login|install-login)
+    exec /bin/bash "$SERVE" --install-login
+    ;;
+  logout|uninstall-login)
+    exec /bin/bash "$SERVE" --uninstall-login
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    echo "unknown command: $cmd" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
