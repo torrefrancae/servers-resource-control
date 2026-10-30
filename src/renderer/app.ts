@@ -57,7 +57,7 @@ type PcMonitorApi = {
   quit: () => void;
   restart: () => void;
   getAlwaysOnTop: () => Promise<boolean>;
-  setAlwaysOnTop: (next: boolean) => Promise<boolean>;
+  setAlwaysOnTop: (next: boolean, persist?: boolean) => Promise<boolean>;
   sleepHost: (id: string) => Promise<SleepResult>;
   sleepAll: () => Promise<SleepResult[]>;
   restartHost: (id: string) => Promise<SleepResult>;
@@ -272,6 +272,9 @@ function toggleTheme(): void {
 }
 
 let pinnedOnTop = true;
+let pinSticky = false;
+let hoverUnpinTimer: ReturnType<typeof setTimeout> | null = null;
+const HOVER_UNPIN_MS = 5 * 60 * 1000;
 
 function applyPinUi(onTop: boolean): void {
   pinnedOnTop = onTop;
@@ -281,14 +284,47 @@ function applyPinUi(onTop: boolean): void {
   btn.classList.toggle("chip-active", onTop);
   btn.setAttribute("aria-pressed", String(onTop));
   btn.title = onTop
-    ? "Always on top enabled (click for default window level)"
-    : "Default window level (click to keep always on top)";
+    ? pinSticky
+      ? "Sticky always on top (click for default / hover auto-pin)"
+      : "Always on top for now (auto-off 5m after mouse leave)"
+    : "Default level (hover pins; click to keep sticky on top)";
+}
+
+function clearHoverUnpinTimer(): void {
+  if (!hoverUnpinTimer) return;
+  clearTimeout(hoverUnpinTimer);
+  hoverUnpinTimer = null;
+}
+
+async function setPin(onTop: boolean, persist: boolean): Promise<boolean> {
+  const next = await window.pcMonitor.setAlwaysOnTop(onTop, persist);
+  applyPinUi(next);
+  return next;
 }
 
 async function togglePin(): Promise<void> {
-  const next = await window.pcMonitor.setAlwaysOnTop(!pinnedOnTop);
-  applyPinUi(next);
-  setFoot(next ? "pinned on top" : "default window level");
+  const next = !pinnedOnTop;
+  pinSticky = next;
+  clearHoverUnpinTimer();
+  await setPin(next, true);
+  setFoot(next ? "sticky pin on" : "default window level");
+}
+
+function onShellPointerEnter(): void {
+  clearHoverUnpinTimer();
+  if (pinnedOnTop) return;
+  void setPin(true, false);
+}
+
+function onShellPointerLeave(): void {
+  if (pinSticky) return;
+  clearHoverUnpinTimer();
+  hoverUnpinTimer = setTimeout(() => {
+    hoverUnpinTimer = null;
+    void setPin(false, false).then(() => {
+      setFoot("auto pin off after 5m idle");
+    });
+  }, HOVER_UNPIN_MS);
 }
 
 function setFoot(message: string): void {
@@ -774,8 +810,15 @@ document.getElementById("host-modal")?.addEventListener("click", (event) => {
 
 applyTheme(readTheme());
 applyFleetUi(readFleetVisible());
-void window.pcMonitor.getAlwaysOnTop().then((onTop) => applyPinUi(onTop));
+void window.pcMonitor.getAlwaysOnTop().then((onTop) => {
+  pinSticky = onTop;
+  applyPinUi(onTop);
+});
 void refreshScheduleUi();
+
+const shellHoverEl = document.getElementById("shell");
+shellHoverEl?.addEventListener("mouseenter", onShellPointerEnter);
+shellHoverEl?.addEventListener("mouseleave", onShellPointerLeave);
 setInterval(() => {
   void refreshScheduleUi();
 }, 60000);

@@ -40,8 +40,8 @@ contextBridge.exposeInMainWorld("pcMonitor", {
   restart: () => ipcRenderer.send("restart-app"),
   getAlwaysOnTop: (): Promise<boolean> =>
     ipcRenderer.invoke("get-always-on-top"),
-  setAlwaysOnTop: (next: boolean): Promise<boolean> =>
-    ipcRenderer.invoke("set-always-on-top", next),
+  setAlwaysOnTop: (next: boolean, persist = true): Promise<boolean> =>
+    ipcRenderer.invoke("set-always-on-top", next, persist),
   sleepHost: (id: HostId): Promise<SleepResult> =>
     ipcRenderer.invoke("sleep-host", id),
   sleepAll: (): Promise<SleepResult[]> => ipcRenderer.invoke("sleep-all"),

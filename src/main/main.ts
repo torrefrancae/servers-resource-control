@@ -237,12 +237,15 @@ app.whenReady().then(() => {
     app.exit(0);
   });
   ipcMain.handle("get-always-on-top", () => alwaysOnTop);
-  ipcMain.handle("set-always-on-top", (_event, next: boolean) => {
-    alwaysOnTop = Boolean(next);
-    applyPinState(win);
-    saveAlwaysOnTop(win, WIN_LIMITS, alwaysOnTop);
-    return alwaysOnTop;
-  });
+  ipcMain.handle(
+    "set-always-on-top",
+    (_event, next: boolean, persist: boolean = true) => {
+      alwaysOnTop = Boolean(next);
+      applyPinState(win);
+      if (persist !== false) saveAlwaysOnTop(win, WIN_LIMITS, alwaysOnTop);
+      return alwaysOnTop;
+    },
+  );
   ipcMain.handle("sleep-host", async (_event, id: HostId) => sleepHost(id));
   ipcMain.handle("sleep-all", async () => sleepHosts());
   ipcMain.handle("restart-host", async (_event, id: HostId) => restartHost(id));
