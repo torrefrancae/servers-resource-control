@@ -297,6 +297,24 @@ body {
   text-transform: none;
 }
 
+.chip-pin-timer {
+  color: var(--warn);
+  background: rgba(212, 160, 23, 0.14);
+  border-color: rgba(212, 160, 23, 0.35);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.chip-pin-timer:hover:not(:disabled) {
+  color: var(--warn);
+  background: rgba(212, 160, 23, 0.22);
+}
+
+.chip-pin-timer.is-back {
+  color: var(--muted);
+}
+
 .chip-timer-on:hover:not(:disabled) {
   color: var(--hot);
   background: rgba(224, 101, 74, 0.22);

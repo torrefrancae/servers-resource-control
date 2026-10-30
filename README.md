@@ -25,7 +25,7 @@ I wanted a floating strip I could leave on a secondary display while coding. Bro
   - Timer all arms a 24h `HH:MM` sleep-all countdown (fires with no confirm)
   - Auto sleep toggles overnight schedules on managed LAN hosts (macOS `pmset` 05:00 sleep, Linux `cctv-sleep.timer`)
 - App modal: restart app, always on top (sticky when set manually)
-- Hover auto-pin: window goes always-on-top on hover; after mouse leave, auto-off in 5 minutes unless sticky pin is on
+- Hover auto-pin: window goes always-on-top on hover; shows an idle countdown chip (`inactive in M:SS`); click it to send behind for 5s (hover again to re-pin); after mouse leave, auto-off in 5 minutes unless sticky pin is on
 - Light / dark theme
 - Compact multi-column layout when the window is short and wide
 - macOS LaunchAgent install for login auto-start (`./serve.sh --install-login`)

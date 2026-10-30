@@ -274,7 +274,11 @@ function toggleTheme(): void {
 let pinnedOnTop = true;
 let pinSticky = false;
 let hoverUnpinTimer: ReturnType<typeof setTimeout> | null = null;
+let hoverTickTimer: ReturnType<typeof setInterval> | null = null;
+let hoverIdleDeadline: number | null = null;
+let hoverBackUntil: number | null = null;
 const HOVER_UNPIN_MS = 5 * 60 * 1000;
+const HOVER_BACK_MS = 5 * 1000;
 
 function applyPinUi(onTop: boolean): void {
   pinnedOnTop = onTop;
@@ -288,12 +292,81 @@ function applyPinUi(onTop: boolean): void {
       ? "Sticky always on top (click for default / hover auto-pin)"
       : "Always on top for now (auto-off 5m after mouse leave)"
     : "Default level (hover pins; click to keep sticky on top)";
+  syncHoverPinChip();
+}
+
+function formatMmSs(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function clearHoverUnpinTimer(): void {
   if (!hoverUnpinTimer) return;
   clearTimeout(hoverUnpinTimer);
   hoverUnpinTimer = null;
+}
+
+function clearHoverTickTimer(): void {
+  if (!hoverTickTimer) return;
+  clearInterval(hoverTickTimer);
+  hoverTickTimer = null;
+}
+
+function syncHoverPinChip(): void {
+  const btn = document.getElementById("hover-pin-timer");
+  if (!btn) return;
+  if (pinSticky) {
+    btn.hidden = true;
+    btn.classList.remove("is-back");
+    return;
+  }
+  const now = Date.now();
+  if (hoverBackUntil != null && hoverBackUntil > now) {
+    btn.hidden = false;
+    btn.classList.add("is-back");
+    btn.textContent = `back ${formatMmSs(hoverBackUntil - now)}`;
+    btn.title = "Sent behind - hover to pin again";
+    return;
+  }
+  if (hoverIdleDeadline != null && hoverIdleDeadline > now) {
+    btn.hidden = false;
+    btn.classList.remove("is-back");
+    btn.textContent = `inactive in ${formatMmSs(hoverIdleDeadline - now)}`;
+    btn.title = "Click to send behind for 5s";
+    return;
+  }
+  if (pinnedOnTop) {
+    btn.hidden = false;
+    btn.classList.remove("is-back");
+    btn.textContent = "on top";
+    btn.title = "Click to send behind for 5s";
+    return;
+  }
+  btn.hidden = true;
+  btn.classList.remove("is-back");
+}
+
+function ensureHoverTick(): void {
+  if (hoverTickTimer) return;
+  hoverTickTimer = setInterval(() => {
+    const now = Date.now();
+    if (hoverBackUntil != null && hoverBackUntil <= now) {
+      hoverBackUntil = null;
+    }
+    if (hoverIdleDeadline != null && hoverIdleDeadline <= now) {
+      hoverIdleDeadline = null;
+    }
+    syncHoverPinChip();
+    if (
+      hoverBackUntil == null &&
+      hoverIdleDeadline == null &&
+      (!pinnedOnTop || pinSticky)
+    ) {
+      clearHoverTickTimer();
+    }
+  }, 250);
 }
 
 async function setPin(onTop: boolean, persist: boolean): Promise<boolean> {
@@ -306,25 +379,51 @@ async function togglePin(): Promise<void> {
   const next = !pinnedOnTop;
   pinSticky = next;
   clearHoverUnpinTimer();
+  hoverIdleDeadline = null;
+  hoverBackUntil = null;
   await setPin(next, true);
+  syncHoverPinChip();
   setFoot(next ? "sticky pin on" : "default window level");
 }
 
 function onShellPointerEnter(): void {
   clearHoverUnpinTimer();
-  if (pinnedOnTop) return;
+  hoverIdleDeadline = null;
+  hoverBackUntil = null;
+  ensureHoverTick();
+  if (pinnedOnTop) {
+    syncHoverPinChip();
+    return;
+  }
   void setPin(true, false);
 }
 
 function onShellPointerLeave(): void {
   if (pinSticky) return;
   clearHoverUnpinTimer();
+  hoverBackUntil = null;
+  hoverIdleDeadline = Date.now() + HOVER_UNPIN_MS;
+  ensureHoverTick();
+  syncHoverPinChip();
   hoverUnpinTimer = setTimeout(() => {
     hoverUnpinTimer = null;
+    hoverIdleDeadline = null;
     void setPin(false, false).then(() => {
+      syncHoverPinChip();
       setFoot("auto pin off after 5m idle");
     });
   }, HOVER_UNPIN_MS);
+}
+
+async function sendBehindForFiveSeconds(): Promise<void> {
+  if (pinSticky) return;
+  clearHoverUnpinTimer();
+  hoverIdleDeadline = null;
+  hoverBackUntil = Date.now() + HOVER_BACK_MS;
+  ensureHoverTick();
+  await setPin(false, false);
+  syncHoverPinChip();
+  setFoot("sent behind for 5s - hover to pin again");
 }
 
 function setFoot(message: string): void {
@@ -819,6 +918,11 @@ void refreshScheduleUi();
 const shellHoverEl = document.getElementById("shell");
 shellHoverEl?.addEventListener("mouseenter", onShellPointerEnter);
 shellHoverEl?.addEventListener("mouseleave", onShellPointerLeave);
+document.getElementById("hover-pin-timer")?.addEventListener("click", (event) => {
+  event.stopPropagation();
+  void sendBehindForFiveSeconds();
+});
+syncHoverPinChip();
 setInterval(() => {
   void refreshScheduleUi();
 }, 60000);
