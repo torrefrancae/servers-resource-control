@@ -3,24 +3,31 @@
     "id": "local",
     "label": "this-machine",
     "kind": "darwin",
-    "source": "local"
+    "source": "local",
+    "enabled": true
   },
   {
     "id": "linux-lab",
     "label": "linux-lab",
     "kind": "linux",
     "source": "ssh",
+    "enabled": true,
     "sshScript": "~/path/to/ssh-linux-lab.sh",
     "sshHost": "linux-lab.local",
-    "sshPort": 22
+    "sshPort": 22,
+    "sshUser": "your-user",
+    "sshPassword": ""
   },
   {
     "id": "mac-lab",
     "label": "mac-lab",
     "kind": "darwin",
     "source": "ssh",
+    "enabled": true,
     "sshScript": "~/path/to/ssh-mac-lab.sh",
     "sshHost": "mac-lab.local",
-    "sshPort": 22
+    "sshPort": 22,
+    "sshUser": "your-user",
+    "sshPassword": ""
   }
 ]

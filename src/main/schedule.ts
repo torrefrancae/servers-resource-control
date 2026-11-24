@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
+import {
+  resolveHostPassword,
+  sshProcessEnv,
+} from "@src/main/host-env";
 import type { HostConfig, HostId } from "@src/shared/hosts";
 import { resolveHosts } from "@src/shared/hosts";
 
@@ -24,30 +26,6 @@ const DARWIN_WAKE = "wakeorpoweron MTWRF 15:00:00";
 const DARWIN_SLEEP = "sleep MTWRFSU 05:00:00";
 const LINUX_TIMER = "cctv-sleep.timer";
 
-function readEnvFile(filePath: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    for (const line of raw.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-      const i = trimmed.indexOf("=");
-      const key = trimmed.slice(0, i).trim();
-      let value = trimmed.slice(i + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      out[key] = value;
-    }
-  } catch {
-    /* missing */
-  }
-  return out;
-}
-
 function scrub(err: unknown, secrets: string[] = []): string {
   let message = err instanceof Error ? err.message : String(err);
   for (const secret of secrets) {
@@ -56,13 +34,6 @@ function scrub(err: unknown, secrets: string[] = []): string {
     }
   }
   return message.slice(0, 160);
-}
-
-function sshEnv(host: HostConfig): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  if (host.sshHost) env.SSH_HOST = host.sshHost;
-  if (host.sshPort) env.SSH_PORT = String(host.sshPort);
-  return env;
 }
 
 function runRemote(
@@ -125,7 +96,7 @@ async function readDarwin(host: HostConfig): Promise<ScheduleHostState> {
     };
   }
   try {
-    const out = await runRemote(host.sshScript, "pmset -g sched", undefined, sshEnv(host));
+    const out = await runRemote(host.sshScript, "pmset -g sched", undefined, sshProcessEnv(host));
     const armed = parseDarwinArmed(out);
     return {
       id: host.id,
@@ -165,7 +136,7 @@ async function readLinux(host: HostConfig): Promise<ScheduleHostState> {
       host.sshScript,
       `systemctl is-enabled ${LINUX_TIMER} 2>/dev/null; systemctl is-active ${LINUX_TIMER} 2>/dev/null; systemctl show ${LINUX_TIMER} -p NextElapseUSecRealtime --value 2>/dev/null`,
       undefined,
-      sshEnv(host),
+      sshProcessEnv(host),
     );
     const enabled = /^enabled\b/m.test(out);
     const active = /\bactive\b/.test(out.split(/\n/)[1] || "");
@@ -192,9 +163,7 @@ async function readLinux(host: HostConfig): Promise<ScheduleHostState> {
 }
 
 async function writeDarwin(host: HostConfig, armed: boolean): Promise<ScheduleHostState> {
-  const secret = host.sshScript
-    ? readEnvFile(path.join(path.dirname(host.sshScript), ".env")).SSH_PASSWORD || ""
-    : "";
+  const secret = resolveHostPassword(host);
   if (!host.sshScript) {
     return {
       id: host.id,
@@ -222,7 +191,7 @@ async function writeDarwin(host: HostConfig, armed: boolean): Promise<ScheduleHo
     : `pmset repeat ${DARWIN_WAKE}`;
   const cmd = `sudo -S -p '' bash -c '${repeat}; echo SCHED_OK; pmset -g sched'`;
   try {
-    const out = await runRemote(host.sshScript, cmd, secret, sshEnv(host));
+    const out = await runRemote(host.sshScript, cmd, secret, sshProcessEnv(host));
     if (!out.includes("SCHED_OK")) throw new Error("schedule change did not confirm");
     const nextArmed = parseDarwinArmed(out);
     return {
@@ -247,9 +216,7 @@ async function writeDarwin(host: HostConfig, armed: boolean): Promise<ScheduleHo
 }
 
 async function writeLinux(host: HostConfig, armed: boolean): Promise<ScheduleHostState> {
-  const secret = host.sshScript
-    ? readEnvFile(path.join(path.dirname(host.sshScript), ".env")).SSH_PASSWORD || ""
-    : "";
+  const secret = resolveHostPassword(host);
   if (!host.sshScript) {
     return {
       id: host.id,
@@ -277,7 +244,7 @@ async function writeLinux(host: HostConfig, armed: boolean): Promise<ScheduleHos
     : `systemctl disable --now ${LINUX_TIMER}`;
   const cmd = `sudo -S -p '' bash -c '${action}; echo SCHED_OK; systemctl is-enabled ${LINUX_TIMER} || true; systemctl is-active ${LINUX_TIMER} || true'`;
   try {
-    const out = await runRemote(host.sshScript, cmd, secret, sshEnv(host));
+    const out = await runRemote(host.sshScript, cmd, secret, sshProcessEnv(host));
     if (!out.includes("SCHED_OK")) throw new Error("schedule change did not confirm");
     const enabled = /^enabled\b/m.test(out);
     return {

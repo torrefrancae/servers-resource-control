@@ -25,6 +25,19 @@ type ScheduleState = {
   updatedAt: number;
 };
 
+type HostSettingsRow = {
+  id: string;
+  label: string;
+  kind: "linux" | "darwin";
+  source: "local" | "ssh";
+  enabled: boolean;
+  sshHost: string;
+  sshPort: number;
+  sshUser: string;
+  sshPassword: string;
+  sshScript: string;
+};
+
 contextBridge.exposeInMainWorld("pcMonitor", {
   onMetrics: (cb: (payload: MetricsPayload) => void) => {
     const listener = (
@@ -52,4 +65,10 @@ contextBridge.exposeInMainWorld("pcMonitor", {
     ipcRenderer.invoke("get-auto-sleep-schedule"),
   setAutoSleepSchedule: (armed: boolean): Promise<ScheduleState> =>
     ipcRenderer.invoke("set-auto-sleep-schedule", armed),
+  getHostSettings: (): Promise<HostSettingsRow[]> =>
+    ipcRenderer.invoke("get-host-settings"),
+  saveHostSettings: (rows: HostSettingsRow[]): Promise<HostSettingsRow[]> =>
+    ipcRenderer.invoke("save-host-settings", rows),
+  setSettingsLayout: (open: boolean): Promise<boolean> =>
+    ipcRenderer.invoke("set-settings-layout", open),
 });

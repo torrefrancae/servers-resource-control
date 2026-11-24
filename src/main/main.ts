@@ -22,6 +22,11 @@ import {
   getAutoSleepSchedule,
   setAutoSleepSchedule,
 } from "@src/main/schedule";
+import {
+  listHostSettings,
+  saveHostSettings,
+  type HostSettingsRow,
+} from "@src/main/host-settings";
 import type { HostId } from "@src/shared/hosts";
 
 function migrateLegacyUserData(): void {
@@ -61,6 +66,8 @@ let pollTimer: ReturnType<typeof setInterval> | null = null;
 let polling = false;
 let flushWindowState: (() => void) | null = null;
 let alwaysOnTop = true;
+let settingsPrevBounds: { x: number; y: number; width: number; height: number } | null =
+  null;
 
 function applyPinState(target: BrowserWindow | null = win): void {
   if (!target || target.isDestroyed()) return;
@@ -201,7 +208,13 @@ async function tick(): Promise<void> {
   if (polling || !win || win.isDestroyed()) return;
   polling = true;
   try {
-    const payload = await pollAll();
+    /* Watchdog: a wedged SSH/mux sample must not freeze metrics forever. */
+    const payload = await Promise.race([
+      pollAll(),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("poll watchdog")), 45000);
+      }),
+    ]);
     if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
     win.webContents.send("metrics", payload);
   } catch {
@@ -254,6 +267,43 @@ app.whenReady().then(() => {
   ipcMain.handle("set-auto-sleep-schedule", async (_event, armed: boolean) =>
     setAutoSleepSchedule(Boolean(armed)),
   );
+  ipcMain.handle("get-host-settings", async () => listHostSettings());
+  ipcMain.handle(
+    "save-host-settings",
+    async (_event, rows: HostSettingsRow[]) => saveHostSettings(rows),
+  );
+  ipcMain.handle("set-settings-layout", async (_event, open: boolean) => {
+    if (!win || win.isDestroyed()) return false;
+    if (open) {
+      const current = win.getBounds();
+      if (!settingsPrevBounds) settingsPrevBounds = { ...current };
+      const width = Math.min(
+        WIN_MAX_W,
+        Math.max(current.width, 560, WIN_MIN_W),
+      );
+      const height = Math.min(
+        WIN_MAX_H,
+        Math.max(current.height, 420, WIN_MIN_H),
+      );
+      win.setMinimumSize(Math.min(560, WIN_MAX_W), Math.min(360, WIN_MAX_H));
+      win.setBounds(
+        {
+          x: current.x,
+          y: Math.max(0, current.y - Math.max(0, height - current.height)),
+          width,
+          height,
+        },
+        false,
+      );
+      return true;
+    }
+    win.setMinimumSize(WIN_MIN_W, WIN_MIN_H);
+    if (settingsPrevBounds) {
+      win.setBounds(settingsPrevBounds, false);
+      settingsPrevBounds = null;
+    }
+    return true;
+  });
 });
 
 app.on("window-all-closed", () => {

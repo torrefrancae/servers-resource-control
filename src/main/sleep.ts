@@ -1,7 +1,9 @@
 import { execFile, spawn } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
 import { promisify } from "node:util";
+import {
+  resolveHostPassword,
+  sshProcessEnv,
+} from "@src/main/host-env";
 import { HostConfig, HostId, resolveHosts } from "@src/shared/hosts";
 
 const execFileAsync = promisify(execFile);
@@ -12,34 +14,6 @@ export type SleepResult = {
   ok: boolean;
   error?: string;
 };
-
-function readEnvFile(filePath: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    for (const line of raw.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-      const i = trimmed.indexOf("=");
-      const key = trimmed.slice(0, i).trim();
-      let value = trimmed.slice(i + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      out[key] = value;
-    }
-  } catch {
-    /* missing env is handled by caller */
-  }
-  return out;
-}
-
-function envBesideScript(sshScript: string): string {
-  return path.join(path.dirname(sshScript), ".env");
-}
 
 function scrubError(err: unknown, secrets: string[] = []): string {
   let message = err instanceof Error ? err.message : String(err);
@@ -145,9 +119,7 @@ export async function sleepHost(id: HostId): Promise<SleepResult> {
 
     if (!host.sshScript) throw new Error("missing ssh script");
 
-    const childEnv: NodeJS.ProcessEnv = { ...process.env };
-    if (host.sshHost) childEnv.SSH_HOST = host.sshHost;
-    if (host.sshPort) childEnv.SSH_PORT = String(host.sshPort);
+    const childEnv = sshProcessEnv(host);
 
     if (host.kind === "darwin") {
       const out = await runRemote(
@@ -162,8 +134,7 @@ export async function sleepHost(id: HostId): Promise<SleepResult> {
       return { id: host.id, label: host.label, ok: true };
     }
 
-    const fileEnv = readEnvFile(envBesideScript(host.sshScript));
-    secret = fileEnv.SSH_PASSWORD || "";
+    secret = resolveHostPassword(host);
     if (!secret) throw new Error("missing SSH_PASSWORD for sudo suspend");
     const out = await runRemote(
       host.sshScript,

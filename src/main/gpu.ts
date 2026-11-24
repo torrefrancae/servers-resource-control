@@ -1,7 +1,6 @@
 import { execFile, spawn } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
 import { promisify } from "node:util";
+import { resolveHostPassword } from "@src/main/host-env";
 import type { HostConfig } from "@src/shared/hosts";
 
 const execFileAsync = promisify(execFile);
@@ -9,28 +8,6 @@ const execFileAsync = promisify(execFile);
 function clampPercent(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(100, value));
-}
-
-function readEnvPassword(sshScript: string): string {
-  const envPath = path.join(path.dirname(sshScript), ".env");
-  try {
-    const raw = fs.readFileSync(envPath, "utf8");
-    for (const line of raw.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("SSH_PASSWORD=")) continue;
-      let value = trimmed.slice("SSH_PASSWORD=".length).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      return value;
-    }
-  } catch {
-    /* missing */
-  }
-  return "";
 }
 
 function parseDarwinGpu(text: string): number | null {
@@ -181,7 +158,7 @@ export async function sampleLinuxGpu(
   env: NodeJS.ProcessEnv,
 ): Promise<number | null> {
   if (!host.sshScript) return null;
-  const password = readEnvPassword(host.sshScript);
+  const password = resolveHostPassword(host);
   if (!password) return null;
   try {
     const b64 = Buffer.from(LINUX_GPU_PY, "utf8").toString("base64");

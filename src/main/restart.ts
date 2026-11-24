@@ -1,7 +1,9 @@
 import { execFile, spawn } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
 import { promisify } from "node:util";
+import {
+  resolveHostPassword,
+  sshProcessEnv,
+} from "@src/main/host-env";
 import type { HostConfig, HostId } from "@src/shared/hosts";
 import { resolveHosts } from "@src/shared/hosts";
 
@@ -15,34 +17,6 @@ export type RestartResult = {
   skipped?: boolean;
 };
 
-function readEnvFile(filePath: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  try {
-    const raw = fs.readFileSync(filePath, "utf8");
-    for (const line of raw.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-      const i = trimmed.indexOf("=");
-      const key = trimmed.slice(0, i).trim();
-      let value = trimmed.slice(i + 1).trim();
-      if (
-        (value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))
-      ) {
-        value = value.slice(1, -1);
-      }
-      out[key] = value;
-    }
-  } catch {
-    /* missing */
-  }
-  return out;
-}
-
-function envBesideScript(sshScript: string): string {
-  return path.join(path.dirname(sshScript), ".env");
-}
-
 function scrubError(err: unknown, secrets: string[] = []): string {
   let message = err instanceof Error ? err.message : String(err);
   for (const secret of secrets) {
@@ -53,21 +27,13 @@ function scrubError(err: unknown, secrets: string[] = []): string {
   return message.slice(0, 180);
 }
 
-function sshEnv(host: HostConfig): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  if (host.sshHost) env.SSH_HOST = host.sshHost;
-  if (host.sshPort) env.SSH_PORT = String(host.sshPort);
-  return env;
-}
-
-function findSudoPassword(preferScript?: string): string {
-  if (preferScript) {
-    const direct = readEnvFile(envBesideScript(preferScript)).SSH_PASSWORD || "";
+function findSudoPassword(preferHost?: HostConfig): string {
+  if (preferHost) {
+    const direct = resolveHostPassword(preferHost);
     if (direct) return direct;
   }
   for (const host of resolveHosts()) {
-    if (!host.sshScript) continue;
-    const pw = readEnvFile(envBesideScript(host.sshScript)).SSH_PASSWORD || "";
+    const pw = resolveHostPassword(host);
     if (pw) return pw;
   }
   return process.env.SUDO_PASSWORD || "";
@@ -171,7 +137,7 @@ async function restartOne(host: HostConfig): Promise<RestartResult> {
         error: "missing ssh script",
       };
     }
-    secret = findSudoPassword(host.sshScript);
+    secret = findSudoPassword(host);
     if (!secret) {
       return {
         id: host.id,
@@ -183,7 +149,7 @@ async function restartOne(host: HostConfig): Promise<RestartResult> {
 
     const cmd =
       host.kind === "darwin" ? darwinRemoteRestartCmd() : linuxRemoteRestartCmd();
-    const out = await runRemote(host.sshScript, cmd, secret, sshEnv(host));
+    const out = await runRemote(host.sshScript, cmd, secret, sshProcessEnv(host));
     if (!out.includes("REBOOT_SENT")) {
       throw new Error("restart command did not confirm");
     }

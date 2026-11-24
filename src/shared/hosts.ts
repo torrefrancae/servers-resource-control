@@ -9,9 +9,12 @@ export type HostConfig = {
   label: string;
   kind: "linux" | "darwin";
   source: "local" | "ssh";
+  enabled?: boolean;
   sshScript?: string;
   sshHost?: string;
   sshPort?: number;
+  sshUser?: string;
+  sshPassword?: string;
 };
 
 export type HostMetrics = {
@@ -20,6 +23,14 @@ export type HostMetrics = {
   cpuPercent: number | null;
   memPercent: number | null;
   gpuPercent: number | null;
+  diskPercent: number | null;
+  diskUsedBytes?: number | null;
+  diskTotalBytes?: number | null;
+  memUsedBytes?: number | null;
+  memTotalBytes?: number | null;
+  cpuLoad?: number | null;
+  cpuFreqHz?: number | null;
+  cpuCores?: number | null;
   availPercent: number | null;
   online: boolean;
   onlineCount?: number;
@@ -34,6 +45,10 @@ export type MetricsPayload = {
   polledAt: number;
 };
 
+export type ResolveHostsOptions = {
+  includeDisabled?: boolean;
+};
+
 export const POLL_MS = 2500;
 
 function expandHome(value: string, home: string): string {
@@ -42,12 +57,12 @@ function expandHome(value: string, home: string): string {
   return value;
 }
 
+export function hostsConfigPath(): string {
+  return path.join(path.resolve(__dirname, "..", ".."), "config", "hosts.json");
+}
+
 function configCandidates(): string[] {
-  const root = path.resolve(__dirname, "..", "..");
-  return [
-    path.join(root, "config", "hosts.json"),
-    path.join(root, "config", "hosts.example.json"),
-  ];
+  return [hostsConfigPath(), path.join(path.dirname(hostsConfigPath()), "hosts.example.json")];
 }
 
 function defaultLocalHost(): HostConfig[] {
@@ -57,6 +72,7 @@ function defaultLocalHost(): HostConfig[] {
       label: os.hostname() || "local",
       kind: process.platform === "darwin" ? "darwin" : "linux",
       source: "local",
+      enabled: true,
     },
   ];
 }
@@ -72,7 +88,14 @@ function normalizeHost(raw: HostConfig, home: string): HostConfig | null {
     label: raw.label || raw.id,
     kind: raw.kind,
     source: raw.source,
+    enabled: raw.enabled !== false,
   };
+  if (typeof raw.sshUser === "string" && raw.sshUser.trim()) {
+    host.sshUser = raw.sshUser.trim();
+  }
+  if (typeof raw.sshPassword === "string" && raw.sshPassword.length > 0) {
+    host.sshPassword = raw.sshPassword;
+  }
   if (raw.source === "ssh") {
     if (!raw.sshScript || !raw.sshHost) return null;
     host.sshScript = expandHome(String(raw.sshScript), home);
@@ -82,21 +105,52 @@ function normalizeHost(raw: HostConfig, home: string): HostConfig | null {
   return host;
 }
 
-export function resolveHosts(home: string = os.homedir()): HostConfig[] {
+export function resolveHosts(
+  home: string = os.homedir(),
+  options: ResolveHostsOptions = {},
+): HostConfig[] {
   for (const file of configCandidates()) {
     try {
       if (!fs.existsSync(file)) continue;
       const parsed = JSON.parse(fs.readFileSync(file, "utf8")) as HostConfig[];
       if (!Array.isArray(parsed)) continue;
-      const hosts = parsed
+      let hosts = parsed
         .map((entry) => normalizeHost(entry, home))
         .filter((entry): entry is HostConfig => entry != null);
+      if (!options.includeDisabled) {
+        hosts = hosts.filter((h) => h.enabled !== false);
+      }
       if (hosts.length) return hosts;
     } catch {
       /* try next candidate */
     }
   }
   return defaultLocalHost();
+}
+
+export function writeHostsConfig(hosts: HostConfig[]): void {
+  const file = hostsConfigPath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const serializable = hosts.map((h) => {
+    const row: Record<string, unknown> = {
+      id: h.id,
+      label: h.label,
+      kind: h.kind,
+      source: h.source,
+      enabled: h.enabled !== false,
+    };
+    if (h.source === "ssh") {
+      row.sshScript = h.sshScript;
+      row.sshHost = h.sshHost;
+      row.sshPort = h.sshPort || 22;
+      if (h.sshUser) row.sshUser = h.sshUser;
+      if (h.sshPassword) row.sshPassword = h.sshPassword;
+    } else if (h.sshUser) {
+      row.sshUser = h.sshUser;
+    }
+    return row;
+  });
+  fs.writeFileSync(file, `${JSON.stringify(serializable, null, 2)}\n`, "utf8");
 }
 
 function avg(values: number[]): number | null {
@@ -137,6 +191,51 @@ export function buildFleetSummary(
         .map((h) => h.gpuPercent)
         .filter((n): n is number => n != null),
     ),
+    diskPercent: avg(
+      onlineHosts
+        .map((h) => h.diskPercent)
+        .filter((n): n is number => n != null),
+    ),
+    diskUsedBytes: sumOrNull(
+      onlineHosts
+        .map((h) => h.diskUsedBytes)
+        .filter((n): n is number => n != null),
+    ),
+    diskTotalBytes: sumOrNull(
+      onlineHosts
+        .map((h) => h.diskTotalBytes)
+        .filter((n): n is number => n != null),
+    ),
+    memUsedBytes: sumOrNull(
+      onlineHosts
+        .map((h) => h.memUsedBytes)
+        .filter((n): n is number => n != null),
+    ),
+    memTotalBytes: sumOrNull(
+      onlineHosts
+        .map((h) => h.memTotalBytes)
+        .filter((n): n is number => n != null),
+    ),
+    cpuLoad: avg(
+      onlineHosts
+        .map((h) => h.cpuLoad)
+        .filter((n): n is number => n != null),
+    ),
+    cpuFreqHz: avg(
+      onlineHosts
+        .map((h) => h.cpuFreqHz)
+        .filter((n): n is number => n != null),
+    ),
+    cpuCores: sumOrNull(
+      onlineHosts
+        .map((h) => h.cpuCores)
+        .filter((n): n is number => n != null),
+    ),
     updatedAt,
   };
+}
+
+function sumOrNull(values: number[]): number | null {
+  if (!values.length) return null;
+  return values.reduce((a, b) => a + b, 0);
 }

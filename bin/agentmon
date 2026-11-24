@@ -2,12 +2,19 @@
 # Global CLI for servers-resource-control.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Resolve through ~/bin symlink to the real repo path.
+SELF="${BASH_SOURCE[0]}"
+while [[ -L "$SELF" ]]; do
+  _dir="$(cd "$(dirname "$SELF")" && pwd)"
+  SELF="$(readlink "$SELF")"
+  [[ "$SELF" != /* ]] && SELF="$_dir/$SELF"
+done
+ROOT="$(cd "$(dirname "$SELF")/.." && pwd)"
 SERVE="$ROOT/serve.sh"
 
 usage() {
   cat <<'EOF'
-Usage: server-monitor [command]
+Usage: agentmon [command]
 
 Commands:
   start      Start the floating panel in the background (default)
@@ -47,10 +54,10 @@ case "$cmd" in
   status)
     pid="$(is_running || true)"
     if [[ -n "${pid:-}" ]]; then
-      echo "server-monitor running pid=$pid"
+      echo "agentmon running pid=$pid"
       exit 0
     fi
-    echo "server-monitor not running"
+    echo "agentmon not running"
     exit 1
     ;;
   login|install-login)

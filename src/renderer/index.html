@@ -60,6 +60,16 @@
           <button
             type="button"
             class="chip"
+            id="hosts-toggle"
+            title="Hosts settings"
+            aria-pressed="false"
+            aria-controls="settings-view"
+          >
+            hosts
+          </button>
+          <button
+            type="button"
+            class="chip"
             id="app-toggle"
             title="App options"
             aria-haspopup="dialog"
@@ -77,6 +87,58 @@
         </div>
       </header>
       <main id="hosts" class="hosts" aria-live="polite"></main>
+      <section class="settings-view" id="settings-view" hidden aria-label="Hosts settings">
+        <aside class="settings-rail">
+          <div class="settings-rail-head">hosts</div>
+          <div class="settings-host-list" id="settings-host-list"></div>
+          <button type="button" class="action-option" id="hosts-add">add host</button>
+        </aside>
+        <div class="settings-detail">
+          <div class="settings-detail-head">
+            <div class="settings-detail-title" id="settings-detail-title">Select a host</div>
+            <label class="settings-enable">
+              <input type="checkbox" form="settings-host-form" name="enabled" />
+              <span>enabled</span>
+            </label>
+          </div>
+          <form class="settings-form" id="settings-host-form" autocomplete="off">
+            <label class="settings-field">
+              <span>label</span>
+              <input name="label" type="text" maxlength="40" required />
+            </label>
+            <label class="settings-field">
+              <span>kind</span>
+              <select name="kind">
+                <option value="darwin">darwin</option>
+                <option value="linux">linux</option>
+              </select>
+            </label>
+            <label class="settings-field">
+              <span>ssh host</span>
+              <input name="sshHost" type="text" placeholder="name.local" />
+            </label>
+            <label class="settings-field">
+              <span>port</span>
+              <input name="sshPort" type="number" min="1" max="65535" value="22" />
+            </label>
+            <label class="settings-field">
+              <span>user</span>
+              <input name="sshUser" type="text" autocomplete="username" />
+            </label>
+            <label class="settings-field">
+              <span>password</span>
+              <input name="sshPassword" type="password" autocomplete="current-password" />
+            </label>
+          </form>
+          <div class="settings-detail-actions">
+            <button type="button" class="action-option" id="hosts-close">close</button>
+            <button type="button" class="action-option" id="hosts-duplicate" title="Clone selected host creds with a new hostname">
+              duplicate
+            </button>
+            <button type="button" class="action-option chip-active" id="hosts-save">save</button>
+          </div>
+        </div>
+      </section>
       <footer class="foot" id="foot">polling...</footer>
       <div class="resize-grip" aria-hidden="true" title="Drag corner to resize"></div>
       <div class="action-modal" id="global-modal" hidden>
@@ -111,6 +173,16 @@
           </button>
           <button type="button" class="action-option chip-active" id="pin" data-app="pin" aria-pressed="true">
             always on top
+          </button>
+          <button
+            type="button"
+            class="action-option"
+            id="units-toggle"
+            data-app="units"
+            aria-pressed="false"
+            title="Toggle percent vs absolute units"
+          >
+            percent
           </button>
         </div>
       </div>

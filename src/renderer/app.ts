@@ -8,6 +8,14 @@ import {
   parseHhMm,
   setSleepTimer,
 } from "./sleep-timer.js";
+import {
+  initHostsSettings,
+  type HostSettingsRow,
+} from "./hosts-settings.js";
+
+const hostsSettingsRef: {
+  current: ReturnType<typeof initHostsSettings> | null;
+} = { current: null };
 
 type HostMetrics = {
   id: string;
@@ -15,6 +23,14 @@ type HostMetrics = {
   cpuPercent: number | null;
   memPercent: number | null;
   gpuPercent: number | null;
+  diskPercent: number | null;
+  diskUsedBytes?: number | null;
+  diskTotalBytes?: number | null;
+  memUsedBytes?: number | null;
+  memTotalBytes?: number | null;
+  cpuLoad?: number | null;
+  cpuFreqHz?: number | null;
+  cpuCores?: number | null;
   availPercent: number | null;
   online: boolean;
   onlineCount?: number;
@@ -22,6 +38,8 @@ type HostMetrics = {
   synthetic?: boolean;
   error?: string;
 };
+
+type DisplayUnits = "percent" | "metric";
 
 type MetricsPayload = {
   hosts: HostMetrics[];
@@ -64,6 +82,9 @@ type PcMonitorApi = {
   restartAll: () => Promise<SleepResult[]>;
   getAutoSleepSchedule: () => Promise<ScheduleState>;
   setAutoSleepSchedule: (armed: boolean) => Promise<ScheduleState>;
+  getHostSettings: () => Promise<HostSettingsRow[]>;
+  saveHostSettings: (rows: HostSettingsRow[]) => Promise<HostSettingsRow[]>;
+  setSettingsLayout: (open: boolean) => Promise<boolean>;
 };
 
 declare global {
@@ -127,12 +148,91 @@ function syncGlobalBusyUi(): void {
   else if (!toggle.classList.contains("chip-timer-on")) toggle.textContent = "global";
 }
 
-function meterRow(label: string, pct: number | null): string {
+function fmtBytes(bytes: number | null | undefined, compact = false): string {
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "--";
+  const units = compact ? ["B", "K", "M", "G", "T"] : ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const digits = value >= 10 || unit === 0 ? 0 : 1;
+  return compact
+    ? `${value.toFixed(digits)}${units[unit]}`
+    : `${value.toFixed(digits)} ${units[unit]}`;
+}
+
+function fmtHz(hz: number | null | undefined): string {
+  if (hz == null || !Number.isFinite(hz) || hz <= 0) return "--";
+  if (hz >= 1e9) return `${(hz / 1e9).toFixed(hz >= 10e9 ? 1 : 2)}GHz`;
+  if (hz >= 1e6) return `${(hz / 1e6).toFixed(0)}MHz`;
+  if (hz >= 1e3) return `${(hz / 1e3).toFixed(0)}kHz`;
+  return `${Math.round(hz)}Hz`;
+}
+
+function fmtLoad(load: number | null | undefined): string {
+  if (load == null || !Number.isFinite(load)) return "--";
+  return load.toFixed(2);
+}
+
+function diskTitle(host: HostMetrics): string {
+  const used = fmtBytes(host.diskUsedBytes);
+  const total = fmtBytes(host.diskTotalBytes);
+  if (used === "--" || total === "--") return "Disk used";
+  const free =
+    host.diskTotalBytes != null && host.diskUsedBytes != null
+      ? fmtBytes(Math.max(0, host.diskTotalBytes - host.diskUsedBytes))
+      : "--";
+  return `Disk ${used} used / ${total} · ${free} free`;
+}
+
+function memTitle(host: HostMetrics): string {
+  const used = fmtBytes(host.memUsedBytes);
+  const total = fmtBytes(host.memTotalBytes);
+  if (used === "--" || total === "--") return "Memory used";
+  return `Memory ${used} / ${total}`;
+}
+
+function cpuTitle(host: HostMetrics): string {
+  const parts: string[] = [];
+  if (host.cpuLoad != null) parts.push(`load ${fmtLoad(host.cpuLoad)}`);
+  if (host.cpuFreqHz) parts.push(`clock ${fmtHz(host.cpuFreqHz)}`);
+  if (host.cpuCores) parts.push(`${host.cpuCores} cores`);
+  if (host.cpuPercent != null) parts.push(`${Math.round(host.cpuPercent)}%`);
+  return parts.length ? parts.join(" · ") : "CPU";
+}
+
+function cpuMetricValue(host: HostMetrics): string {
+  if (host.cpuFreqHz && host.cpuPercent != null) {
+    return fmtHz(host.cpuFreqHz * (host.cpuPercent / 100));
+  }
+  if (host.cpuLoad != null) return fmtLoad(host.cpuLoad);
+  return fmt(host.cpuPercent);
+}
+
+function memMetricValue(host: HostMetrics): string {
+  if (host.memUsedBytes != null) return fmtBytes(host.memUsedBytes, true);
+  return fmt(host.memPercent);
+}
+
+function diskMetricValue(host: HostMetrics): string {
+  if (host.diskUsedBytes != null) return fmtBytes(host.diskUsedBytes, true);
+  return fmt(host.diskPercent);
+}
+
+function meterRow(
+  label: string,
+  pct: number | null,
+  value: string,
+  title?: string,
+): string {
+  const titleAttr = title ? ` title="${title}"` : "";
   return `
-    <div class="meter">
+    <div class="meter"${titleAttr}>
       <span>${label}</span>
       <div class="track"><div class="fill ${levelClass(pct)}" style="width:${pct ?? 0}%"></div></div>
-      <span class="val">${fmt(pct)}</span>
+      <span class="val">${value}</span>
     </div>
   `;
 }
@@ -148,6 +248,8 @@ function renderHost(host: HostMetrics): string {
   const cpu = host.cpuPercent;
   const mem = host.memPercent;
   const gpu = host.gpuPercent;
+  const disk = host.diskPercent;
+  const metric = displayUnits === "metric";
   const isFleet = Boolean(host.synthetic || host.id === "fleet");
   const nameClass = host.online || isFleet ? "name" : "name off";
   const waiting = pendingSleepIds.has(host.id);
@@ -158,7 +260,27 @@ function renderHost(host: HostMetrics): string {
   const action = isFleet
     ? `<span class="chip chip-avail" title="Availability">${host.onlineCount || 0}/${host.hostCount || 0}</span>`
     : `<button type="button" class="chip chip-host" data-host="${host.id}" title="Power options for ${host.label}"${waiting ? " disabled" : ""}>${waiting ? "..." : "power"}</button>`;
-  const meters = `${meterRow("cpu", cpu)}${meterRow("mem", mem)}${meterRow("gpu", gpu)}`;
+  const meters = [
+    meterRow(
+      "cpu",
+      cpu,
+      metric ? cpuMetricValue(host) : fmt(cpu),
+      cpuTitle(host),
+    ),
+    meterRow(
+      "mem",
+      mem,
+      metric ? memMetricValue(host) : fmt(mem),
+      memTitle(host),
+    ),
+    meterRow("gpu", gpu, fmt(gpu), "GPU utilization"),
+    meterRow(
+      "disk",
+      disk,
+      metric ? diskMetricValue(host) : fmt(disk),
+      diskTitle(host),
+    ),
+  ].join("");
   return `
     <section class="row${isFleet ? " row-fleet" : ""}" data-id="${host.id}">
       <div class="host-meta">
@@ -223,6 +345,34 @@ type Theme = "dark" | "light";
 
 const THEME_KEY = "pc-monitor-theme";
 const FLEET_KEY = "pc-monitor-show-fleet";
+const UNITS_KEY = "pc-monitor-display-units";
+
+let displayUnits: DisplayUnits = "percent";
+
+function readDisplayUnits(): DisplayUnits {
+  return localStorage.getItem(UNITS_KEY) === "metric" ? "metric" : "percent";
+}
+
+function applyUnitsUi(mode: DisplayUnits): void {
+  displayUnits = mode;
+  const btn = document.getElementById("units-toggle");
+  if (!btn) return;
+  const metric = mode === "metric";
+  btn.textContent = metric ? "units" : "percent";
+  btn.classList.toggle("chip-active", metric);
+  btn.setAttribute("aria-pressed", String(metric));
+  btn.title = metric
+    ? "Values show GB / GHz (click for percent)"
+    : "Values show percent (click for GB / GHz)";
+}
+
+function toggleDisplayUnits(): void {
+  const next: DisplayUnits = displayUnits === "metric" ? "percent" : "metric";
+  localStorage.setItem(UNITS_KEY, next);
+  applyUnitsUi(next);
+  if (lastPayload) render(lastPayload);
+  setFoot(next === "metric" ? "showing units (GB / GHz)" : "showing percent");
+}
 
 let showFleet = false;
 
@@ -600,6 +750,12 @@ function openModal(id: string, toggleId: string): void {
   toggle?.setAttribute("aria-expanded", "true");
 }
 
+hostsSettingsRef.current = initHostsSettings({
+  api: window.pcMonitor,
+  setFoot,
+});
+const hostsSettings = hostsSettingsRef.current;
+
 function closeGlobalMenu(): void {
   closeModal("global-modal", "global-toggle");
 }
@@ -661,6 +817,7 @@ async function executeSleepAll(options: { confirm: boolean }): Promise<void> {
         cpuPercent: null,
         memPercent: null,
         gpuPercent: null,
+        diskPercent: null,
         availPercent: null,
         online: !pendingSleepIds.has(r.id),
       })),
@@ -853,6 +1010,8 @@ document.getElementById("app-modal")?.addEventListener("click", (event) => {
     window.pcMonitor.restart();
   } else if (action === "pin") {
     void togglePin();
+  } else if (action === "units") {
+    toggleDisplayUnits();
   }
 });
 
@@ -861,6 +1020,7 @@ document.addEventListener("keydown", (event) => {
     closeGlobalMenu();
     closeAppMenu();
     closeHostMenu();
+    if (hostsSettings.isOpen()) hostsSettings.close();
   }
 });
 
@@ -909,6 +1069,7 @@ document.getElementById("host-modal")?.addEventListener("click", (event) => {
 
 applyTheme(readTheme());
 applyFleetUi(readFleetVisible());
+applyUnitsUi(readDisplayUnits());
 void window.pcMonitor.getAlwaysOnTop().then((onTop) => {
   pinSticky = onTop;
   applyPinUi(onTop);
