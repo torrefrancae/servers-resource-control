@@ -1,6 +1,6 @@
 # Servers Resource Control
 
-A tiny always-on-top Electron panel that polls **CPU**, **memory**, and **GPU** across your local machine and SSH-reachable LAN hosts.
+A tiny always-on-top Electron panel that polls **CPU**, **memory**, **GPU**, and **disk** across your local machine and SSH-reachable LAN hosts.
 
 ![Servers Resource Control floating panel](docs/panel.png)
 
@@ -19,7 +19,7 @@ I wanted a floating strip I could leave on a secondary display while coding. Bro
 
 ### Monitoring
 
-- Local + remote host metrics (CPU / memory / GPU)
+- Local + remote host metrics (CPU / memory / GPU / disk)
 - Fleet summary row (average of online hosts + availability), hidden until toggled
 - Light / dark theme
 - Compact multi-column layout when the window is short and wide
@@ -73,7 +73,18 @@ main process
 | `config/hosts.example.json` | Public sample inventory |
 | `config/wrappers/` | Auto-generated SSH wrappers (gitignored) |
 
-Polling interval defaults to **2.5s**. Remote Linux CPU uses a short `/proc/stat` delta; Darwin remotes approximate CPU from load average; GPU uses `ioreg` on macOS and i915 engine runtime on Linux when available.
+Polling interval defaults to **2.5s**. Remote Linux CPU uses a short `/proc/stat` delta; Darwin remotes approximate CPU from load average; GPU uses `ioreg` on macOS and i915 engine runtime on Linux when available; disk comes from `df` (macOS uses `/System/Volumes/Data` when present so APFS system snapshots do not under-report usage).
+
+To refresh the README screenshot after UI changes:
+
+```bash
+# edits docs/panel-preview.html, then:
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new --disable-gpu --hide-scrollbars \
+  --window-size=1100,168 \
+  --screenshot=docs/panel.png \
+  "file://$(pwd)/docs/panel-preview.html"
+```
 
 ## Quick start
 
